@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#141A26">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Radar de Leads">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Ccircle cx='17' cy='17' r='15' fill='none' stroke='%235B47E0' stroke-width='3'/%3E%3Ccircle cx='17' cy='17' r='9' fill='none' stroke='%230B8A68' stroke-width='3'/%3E%3Ccircle cx='17' cy='17' r='4' fill='%23141A26'/%3E%3C/svg%3E">
+<style>html{color-scheme:light}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Radar de Leads</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: app de bolso — cabeçalho fino, conteúdo em cartões só onde há objeto (lead), barra de abas fixa embaixo no celular */
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --sunk:#E8ECF2; --line:#D5DBE5;
+  --fg:#141A26; --muted:#5D6779;
+  --nfc:#5B47E0; --nfc-soft:#ECE9FF;
+  --site:#0B8A68; --site-soft:#DDF4EC;
+  --hot:#D9480F; --warn:#B7791F; --ok:#2F855A; --dead:#8A93A3;
+  --focus:#2563EB;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E121A; --surface:#171C27; --sunk:#1F2532; --line:#2C3445;
+  --fg:#E9EDF4; --muted:#98A2B5;
+  --nfc:#9A8BFF; --nfc-soft:#2A2550; --site:#3FCB9E; --site-soft:#173A31;
+  --hot:#FF7A45; --warn:#E5B454; --ok:#5FCB8E; --dead:#6D7688; --focus:#6EA0FF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E121A; --surface:#171C27; --sunk:#1F2532; --line:#2C3445;
+  --fg:#E9EDF4; --muted:#98A2B5;
+  --nfc:#9A8BFF; --nfc-soft:#2A2550; --site:#3FCB9E; --site-soft:#173A31;
+  --hot:#FF7A45; --warn:#E5B454; --ok:#5FCB8E; --dead:#6D7688; --focus:#6EA0FF; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:16px;padding-block:10px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand svg{flex:none}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:20px;letter-spacing:-.01em;margin:0}
+.brand small{display:block;color:var(--muted);font-size:12px;font-weight:500}
+nav.tabs{display:flex;gap:4px}
+nav.tabs button{border:0;background:none;padding:8px 12px;border-radius:999px;font-weight:600;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:6px}
+nav.tabs button[aria-current="true"]{background:var(--fg);color:var(--bg)}
+nav.tabs svg{width:18px;height:18px}
+.status-note{font-size:12px;color:var(--muted);padding-block:6px}
+.status-note.warn{color:var(--warn)}
+main{padding-block:18px 110px}
+section[hidden]{display:none}
+h2{font-family:var(--f-display);font-weight:800;font-size:24px;letter-spacing:-.01em;margin:0 0 4px;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;text-wrap:balance}
+.lede{color:var(--muted);margin:0 0 18px;max-width:62ch}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--line);background:var(--surface);padding:9px 14px;border-radius:10px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--fg)}
+.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn.nfc{background:var(--nfc);border-color:var(--nfc);color:#fff}
+.btn.site{background:var(--site);border-color:var(--site);color:#fff}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.chip.nfc{background:var(--nfc-soft);color:var(--nfc)}
+.chip.site{background:var(--site-soft);color:var(--site)}
+.chip.st{background:var(--sunk);color:var(--fg)}
+.chip.st::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c,var(--muted))}
+.chip.due{background:none;border:1px solid var(--hot);color:var(--hot)}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 11px;width:100%;min-width:0;color:var(--fg)}
+textarea{resize:vertical;min-height:90px;line-height:1.5}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}
+.seg{display:inline-flex;background:var(--sunk);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:8px;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+/* Funil */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.kpi b{display:block;font-family:var(--f-display);font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi span{font-size:12px;color:var(--muted);font-weight:600}
+.funnel{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.fbar{display:grid;grid-template-columns:96px 1fr 34px;gap:10px;align-items:center;font-size:13px}
+.fbar .track{height:12px;background:var(--sunk);border-radius:6px;overflow:hidden}
+.fbar .fill{height:100%;border-radius:6px;background:var(--c)}
+.fbar .n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.followups{display:flex;flex-direction:column}
+.fu{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);min-width:0}
+.fu:first-child{border-top:0}
+.fu .who{flex:1;min-width:0}
+.fu .who b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fu .who span{font-size:12px;color:var(--muted)}
+.empty{color:var(--muted);font-size:14px;padding:14px;border:1px dashed var(--line);border-radius:var(--r);text-align:center}
+
+/* Leads */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.toolbar input{flex:1 1 200px;width:auto}
+.toolbar select{width:auto}
+.leadlist{display:grid;gap:10px}
+.lead{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:6px 12px;cursor:pointer;text-align:left;width:100%}
+.lead:hover{border-color:var(--muted)}
+.lead .nm{font-weight:700;font-size:16px;min-width:0;overflow-wrap:anywhere}
+.lead .meta{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.lead .sub{font-size:13px;color:var(--muted);grid-column:1/-1;overflow-wrap:anywhere}
+.ex{font-size:11px;font-weight:700;color:var(--warn);border:1px solid var(--warn);border-radius:6px;padding:1px 6px}
+
+/* Prospectar */
+.steps{display:flex;flex-direction:column;gap:14px}
+.step{display:grid;grid-template-columns:28px 1fr;gap:12px}
+.step .k{width:28px;height:28px;border-radius:50%;background:var(--fg);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:13px}
+.step > div{min-width:0}
+.ideas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ideas button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 11px;font-size:13px;cursor:pointer}
+.fit{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.fitbox{flex:1 1 220px;border-radius:10px;padding:10px 12px;font-size:13px;border:1px solid var(--line)}
+.fitbox.on.nfc{background:var(--nfc-soft);border-color:var(--nfc)}
+.fitbox.on.site{background:var(--site-soft);border-color:var(--site)}
+.fitbox b{display:block;font-size:14px}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--fg)}
+.check input{width:18px;height:18px}
+
+/* Mensagens */
+.msgbox{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;font-size:14px;min-height:120px;overflow-wrap:anywhere}
+
+/* Sheet */
+.overlay{position:fixed;inset:0;background:rgba(10,14,22,.5);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:640px;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:720px){.overlay{align-items:center}.sheet{border-radius:18px;max-height:88%}}
+.sheet header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sheet header h3{flex:1}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:999px;font-weight:600;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+
+@media (max-width:719px){
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);justify-content:space-around;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+  nav.tabs button{flex-direction:column;gap:2px;font-size:11px;padding:6px 8px;border-radius:10px;flex:1}
+  nav.tabs button[aria-current="true"]{background:var(--sunk);color:var(--fg)}
+  nav.tabs svg{width:22px;height:22px}
+}
+@media (prefers-reduced-motion:no-preference){.lead,.btn{transition:border-color .15s,transform .1s}.btn:active{transform:scale(.98)}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15" fill="none" stroke="var(--nfc)" stroke-width="2.5" opacity=".35"/><circle cx="17" cy="17" r="9" fill="none" stroke="var(--site)" stroke-width="2.5" opacity=".6"/><circle cx="17" cy="17" r="3.5" fill="var(--fg)"/></svg>
+      <div><h1>Radar de Leads</h1><small>Placas NFC · Criação de sites</small></div>
+    </div>
+    <nav class="tabs" aria-label="Seções">
+      <button data-tab="funil" aria-current="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg>Funil</button>
+      <button data-tab="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.8 3 2.6 3.5 5.2"/></svg>Leads</button>
+      <button data-tab="prospectar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Prospectar</button>
+      <button data-tab="mensagens"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H9l-5 4z"/></svg>Mensagens</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="note" class="status-note" hidden></div>
+
+  <!-- FUNIL -->
+  <section id="tab-funil">
+    <div class="row" style="justify-content:space-between;margin-bottom:14px">
+      <div><h2>Seu funil hoje</h2><p class="lede" style="margin:0" id="hoje"></p></div>
+      <div class="seg" id="projFilter" role="group" aria-label="Projeto">
+        <button data-p="todos" aria-pressed="true">Todos</button>
+        <button data-p="nfc" aria-pressed="false">NFC</button>
+        <button data-p="sites" aria-pressed="false">Sites</button>
+      </div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div class="panel">
+        <div class="eyebrow">Por etapa</div>
+        <div class="funnel" id="funnel"></div>
+      </div>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between"><div class="eyebrow">Retornos para hoje ou atrasados</div></div>
+        <div class="followups" id="followups" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn primary" data-new>+ Novo lead</button>
+      <button class="btn" data-go="prospectar">Buscar empresas no Maps</button>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <div class="eyebrow">Backup</div>
+      <p style="margin:6px 0 10px;color:var(--muted);font-size:14px;max-width:62ch">Os leads ficam salvos neste navegador. Baixe um backup de vez em quando e use “Restaurar” para levar seus leads para outro aparelho.</p>
+      <div class="row">
+        <button class="btn" id="bkOut">Baixar backup</button>
+        <label class="btn" for="bkIn" style="cursor:pointer">Restaurar backup</label>
+        <input type="file" id="bkIn" accept="application/json,.json" hidden>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEADS -->
+  <section id="tab-leads" hidden>
+    <h2>Leads</h2>
+    <p class="lede">Toque num lead para editar, mudar a etapa ou mandar mensagem.</p>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Buscar por nome, negócio, cidade…" aria-label="Buscar">
+      <select id="fProj" aria-label="Projeto"><option value="">Todos os projetos</option><option value="nfc">Placas NFC</option><option value="sites">Sites</option><option value="ambos">Os dois</option></select>
+      <select id="fStatus" aria-label="Etapa"><option value="">Todas as etapas</option></select>
+      <button class="btn primary" data-new>+ Novo</button>
+    </div>
+    <div class="leadlist" id="leadlist"></div>
+  </section>
+
+  <!-- PROSPECTAR -->
+  <section id="tab-prospectar" hidden>
+    <h2>Prospectar</h2>
+    <p class="lede">Ache negócios locais no Google Maps, veja se servem pra NFC (poucas avaliações) ou pra site (não têm site) e salve direto no funil.</p>
+    <div class="grid2">
+      <div class="panel steps">
+        <div class="step"><span class="k">1</span><div>
+          <h3>O que e onde buscar</h3>
+          <div class="fgrid" style="margin-top:10px">
+            <label class="f">Segmento<input id="pSeg" placeholder="ex.: barbearia"></label>
+            <label class="f">Cidade / bairro<input id="pCity" placeholder="ex.: Campinas"></label>
+          </div>
+          <div class="ideas" id="ideas"></div>
+        </div></div>
+        <div class="step"><span class="k">2</span><div>
+          <h3>Abra a busca</h3>
+          <p style="margin:6px 0 10px;color:var(--muted);font-size:14px">Abre em outra aba. Olhe o número de avaliações e se aparece botão “Site”.</p>
+          <div class="row">
+            <a class="btn" id="lnkMaps" target="_blank" rel="noopener" href="https://www.google.com/maps">Google Maps</a>
+            <a class="btn" id="lnkInsta" target="_blank" rel="noopener" href="https://www.google.com/search?q=site%3Ainstagram.com">Instagram via Google</a>
+          </div>
+        </div></div>
+      </div>
+      <div class="panel steps">
+        <div class="step"><span class="k">3</span><div>
+          <h3>Qualifique e salve</h3>
+          <div class="fgrid" style="margin-top:10px">
+            <label class="f">Nome do negócio<input id="qNeg" placeholder="ex.: Barbearia do Zé"></label>
+            <label class="f">WhatsApp / telefone<input id="qTel" inputmode="tel" placeholder="(19) 99999-9999"></label>
+            <label class="f">Avaliações no Google<input id="qAval" type="number" min="0" inputmode="numeric" placeholder="ex.: 23"></label>
+            <label class="f">Nota<input id="qNota" type="number" min="0" max="5" step="0.1" inputmode="decimal" placeholder="ex.: 4,6"></label>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <label class="check"><input type="checkbox" id="qSemSite"> Não tem site</label>
+            <label class="check"><input type="checkbox" id="qInsta"> Tem Instagram ativo</label>
+          </div>
+          <div class="fit" id="fit"></div>
+          <div class="row" style="margin-top:12px"><button class="btn primary" id="qSave">Salvar no funil</button></div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MENSAGENS -->
+  <section id="tab-mensagens" hidden>
+    <h2>Mensagens</h2>
+    <p class="lede">Escolha o lead e o momento da conversa. O texto já vem com o nome dele; copie ou abra direto no WhatsApp.</p>
+    <div class="grid2">
+      <div class="panel stack">
+        <label class="f">Lead<select id="mLead"></select></label>
+        <label class="f">Projeto<select id="mProj"><option value="nfc">Placas NFC</option><option value="sites">Sites</option></select></label>
+        <label class="f">Momento<select id="mTpl"></select></label>
+        <div class="row">
+          <button class="btn" id="mAI" hidden>Reescrever com IA</button>
+          <span id="mAIstate" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+      </div>
+      <div class="panel stack">
+        <div class="eyebrow">Mensagem</div>
+        <div class="msgbox" id="mText" contenteditable="true" aria-label="Texto da mensagem"></div>
+        <div class="row">
+          <button class="btn primary" id="mCopy">Copiar</button>
+          <a class="btn site" id="mWa" target="_blank" rel="noopener" href="#">Abrir no WhatsApp</a>
+          <button class="btn" id="mMark">Marcar como contatado</button>
+        </div>
+        <div id="mPhone" style="font-size:13px;color:var(--muted)"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="sheetRoot"></div>
+
+<script>
+(() => {
+const STAGES = [
+  {k:"novo", t:"Novo", c:"var(--muted)"},
+  {k:"contatado", t:"Contatado", c:"var(--nfc)"},
+  {k:"interessado", t:"Interessado", c:"var(--warn)"},
+  {k:"proposta", t:"Proposta", c:"var(--hot)"},
+  {k:"fechado", t:"Fechado", c:"var(--ok)"},
+  {k:"perdido", t:"Perdido", c:"var(--dead)"}
+];
+const ST = Object.fromEntries(STAGES.map(s=>[s.k,s]));
+const PROJ = {nfc:"Placas NFC", sites:"Sites", ambos:"NFC + Sites"};
+const SEGS = ["barbearia","salão de beleza","restaurante","hamburgueria","pizzaria","clínica odontológica","clínica de estética","academia","pet shop","oficina mecânica","imobiliária","advogado","padaria","loja de roupas"];
+
+const TPL = {
+  nfc: [
+    {k:"primeiro", t:"Primeiro contato", s:"Oi{nome}, tudo bem? Vi a {negocio} no Google{aval_txt}. Eu trabalho com placas NFC: o cliente encosta o celular na placa e já abre a página de avaliação do Google, o Pix ou o Instagram de vocês. Ajuda muito a juntar avaliações sem ficar pedindo pra cada um.\n\nPosso te mandar uma foto de como fica no balcão?"},
+    {k:"followup", t:"Retorno (sem resposta)", s:"Oi{nome}! Passando pra saber se você viu minha mensagem sobre a placa NFC pra {negocio}. Quem tem mais avaliação aparece primeiro no Maps, e a placa faz o cliente avaliar na hora, ainda no balcão. Se quiser, te mostro em 2 minutos."},
+    {k:"proposta", t:"Enviar proposta", s:"Oi{nome}, conforme combinamos, segue a proposta pra {negocio}:\n\n• Placa NFC personalizada com a marca de vocês\n• Link direto pra avaliação do Google (ou Pix / Instagram)\n• Funciona em qualquer celular com NFC, e tem QR code pra quem não tem\n\nValor: R$ ___\nPrazo de entrega: ___ dias\n\nPosso já separar a sua?"},
+    {k:"fechamento", t:"Fechamento", s:"Fechado então{nome}! Pra produzir a placa da {negocio} só preciso:\n1. Logo em boa qualidade\n2. Link do perfil no Google (ou chave Pix / @ do Instagram)\n3. Endereço de entrega\n\nAssim que confirmar o pagamento, já começo."}
+  ],
+  sites: [
+    {k:"primeiro", t:"Primeiro contato", s:"Oi{nome}, tudo bem? Procurei a {negocio} no Google e não achei um site de vocês. Hoje muita gente pesquisa antes de comprar e acaba indo pro concorrente que aparece melhor. Eu crio sites rápidos, pensados pro celular e com botão direto pro WhatsApp.\n\nQuer que eu te mostre um modelo do seu segmento?"},
+    {k:"followup", t:"Retorno (sem resposta)", s:"Oi{nome}! Voltando aqui sobre o site da {negocio}. Montei uma ideia rápida de como ficaria a página inicial pra vocês. Posso te mandar o print?"},
+    {k:"proposta", t:"Enviar proposta", s:"Oi{nome}, segue a proposta do site da {negocio}:\n\n• Site responsivo (abre bem no celular)\n• Botão de WhatsApp, mapa e Instagram integrados\n• Aparece no Google com seu nome e cidade\n• Domínio e hospedagem: ___\n\nValor: R$ ___\nPrazo: ___ dias\n\nQualquer dúvida me chama."},
+    {k:"fechamento", t:"Fechamento", s:"Show{nome}, vamos começar o site da {negocio}! Me manda:\n1. Logo e cores da marca\n2. Fotos do espaço / produtos\n3. Serviços e preços que quer mostrar\n4. Endereço e horário de funcionamento\n\nCom isso te mando a primeira versão em ___ dias."}
+  ]
+};
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today = () => new Date().toISOString().slice(0,10);
+const fmtDate = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}) : "";
+const digits = s => String(s||"").replace(/\D/g,"");
+const waNum = s => { let d = digits(s); if (!d) return ""; if (d.length<=11) d = "55"+d; return d; };
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2200); }
+
+/* ---------- Store: db quando disponível, senão este aparelho ---------- */
+let leads = [];
+let db = null, col = null, mode = "local";
+const LKEY = "radar-leads-v1";
+function loadLocal(){ try { return JSON.parse(localStorage.getItem(LKEY)||"[]"); } catch { return []; } }
+function saveLocal(){ try { localStorage.setItem(LKEY, JSON.stringify(leads)); } catch {} }
+function setNote(msg, warn){ const n=$("#note"); n.textContent=msg; n.classList.toggle("warn",!!warn); n.hidden = !msg; }
+
+async function saveLead(lead){
+  lead.atualizadoEm = new Date().toISOString();
+  if (mode==="db"){
+    const id = lead.id || col.doc().id; const body = {...lead}; delete body.id;
+    try { await col.doc(id).set(body); } catch(e){ toast("Não salvou: "+(e.message||e.code)); return null; }
+    return id;
+  }
+  if (!lead.id){ lead.id = "l"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); leads.push(lead); }
+  else leads = leads.map(l => l.id===lead.id ? lead : l);
+  saveLocal(); render(); return lead.id;
+}
+async function deleteLead(id){
+  if (mode==="db"){ try { await col.doc(id).delete(); } catch(e){ toast("Não apagou: "+(e.message||e.code)); } return; }
+  leads = leads.filter(l=>l.id!==id); saveLocal(); render();
+}
+
+async function boot(){
+  leads = loadLocal(); render();
+  const timer = setTimeout(()=>setNote("Não consegui falar com o banco ainda. Os leads ficam salvos só neste aparelho por enquanto.", true), 10000);
+  try { db = window.claude?.use ? await window.claude.use("db") : null; } catch { db = null; }
+  if (!db){ clearTimeout(timer); setNote(""); return; }
+  col = db.collection("leads");
+  col.onSnapshot(snap => {
+    if (!snap.metadata.fromCache){ clearTimeout(timer); setNote(""); }
+    mode = "db";
+    leads = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    render();
+  }, err => { clearTimeout(timer); setNote("O banco parou de responder ("+err.code+"). Recarregue a página mais tarde.", true); });
+  initAI();
+}
+
+/* ---------- Funil ---------- */
+let projF = "todos";
+const inProj = (l,p) => p==="todos" || l.projeto===p || l.projeto==="ambos";
+function renderFunil(){
+  $("#hoje").textContent = new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
+  const L = leads.filter(l=>inProj(l,projF));
+  const ativos = L.filter(l=>!["fechado","perdido"].includes(l.status));
+  const fech = L.filter(l=>l.status==="fechado");
+  const receita = fech.reduce((a,l)=>a+(+l.valor||0),0);
+  const contatados = L.filter(l=>l.status!=="novo").length;
+  const taxa = contatados ? Math.round(fech.length/contatados*100) : 0;
+  $("#kpis").innerHTML = [
+    [ativos.length,"leads em andamento"],
+    [L.filter(l=>l.status==="novo").length,"ainda sem contato"],
+    [fech.length,"fechados"],
+    [receita.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0}),"faturado"],
+    [taxa+"%","conversão dos contatados"]
+  ].map(([v,t])=>`<div class="kpi"><b>${esc(v)}</b><span>${t}</span></div>`).join("");
+  const max = Math.max(1,...STAGES.map(s=>L.filter(l=>l.status===s.k).length));
+  $("#funnel").innerHTML = STAGES.map(s=>{ const n=L.filter(l=>l.status===s.k).length;
+    return `<div class="fbar"><span>${s.t}</span><div class="track"><div class="fill" style="--c:${s.c};width:${n/max*100}%"></div></div><span class="n">${n}</span></div>`;}).join("");
+  const due = ativos.filter(l=>l.proximo && l.proximo<=today()).sort((a,b)=>a.proximo.localeCompare(b.proximo));
+  $("#followups").innerHTML = due.length ? due.map(l=>`<div class="fu"><div class="who"><b>${esc(l.negocio||l.nome)}</b><span>${esc(ST[l.status]?.t)} · ${l.proximo<today()?"atrasado desde ":"hoje, "}${fmtDate(l.proximo)}</span></div><button class="btn small" data-msg="${l.id}">Mensagem</button><button class="btn small ghost" data-edit="${l.id}">Abrir</button></div>`).join("")
+    : `<div class="empty">Nenhum retorno pendente. Ao editar um lead, preencha “Próximo contato” para ele aparecer aqui.</div>`;
+}
+
+/* ---------- Leads ---------- */
+function projChip(p){ if(p==="ambos") return `<span class="chip nfc">NFC</span><span class="chip site">Site</span>`; return p==="sites"?`<span class="chip site">Site</span>`:`<span class="chip nfc">NFC</span>`; }
+function renderLeads(){
+  const q = $("#q").value.trim().toLowerCase(), fp=$("#fProj").value, fs=$("#fStatus").value;
+  const L = leads.filter(l => (!fp || l.projeto===fp || (fp!=="ambos" && l.projeto==="ambos")) && (!fs || l.status===fs) &&
+      (!q || [l.nome,l.negocio,l.cidade,l.segmento,l.telefone,l.instagram].join(" ").toLowerCase().includes(q)))
+    .sort((a,b)=>(b.atualizadoEm||"").localeCompare(a.atualizadoEm||""));
+  $("#leadlist").innerHTML = L.length ? L.map(l=>{
+    const s = ST[l.status]||ST.novo; const late = l.proximo && l.proximo<=today() && !["fechado","perdido"].includes(l.status);
+    return `<button class="lead" data-edit="${l.id}">
+      <span class="nm">${esc(l.negocio||l.nome||"Sem nome")} ${l.exemplo?'<span class="ex">exemplo</span>':""}</span>
+      <span class="chip st" style="--c:${s.c}">${s.t}</span>
+      ${l.nome && l.negocio ? `<span class="sub">${esc(l.nome)}</span>`:""}
+      <span class="meta">${projChip(l.projeto)}${l.segmento?`<span>${esc(l.segmento)}</span>`:""}${l.cidade?`<span>· ${esc(l.cidade)}</span>`:""}${l.avaliacoes!==""&&l.avaliacoes!=null?`<span>· <span class="num">${esc(l.avaliacoes)}</span> avaliações</span>`:""}${late?`<span class="chip due">retornar ${fmtDate(l.proximo)}</span>`:""}</span>
+    </button>`;}).join("")
+    : `<div class="empty">${leads.length?"Nenhum lead com esses filtros.":"Nenhum lead ainda. Toque em “+ Novo” ou vá em Prospectar para buscar empresas no Maps."}</div>`;
+}
+
+/* ---------- Editor ---------- */
+function openEditor(lead){
+  const l = lead ? {...lead} : {projeto:"nfc", status:"novo", origem:"Prospecção ativa", criadoEm:new Date().toISOString()};
+  const root = $("#sheetRoot");
+  root.innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shT">
+    <header><h3 id="shT">${lead?"Editar lead":"Novo lead"}</h3><button class="btn ghost" id="shX" aria-label="Fechar">✕</button></header>
+    <form id="shF" class="stack">
+      <div class="fgrid">
+        <label class="f">Negócio<input id="e_negocio" value="${esc(l.negocio)}" placeholder="Barbearia do Zé"></label>
+        <label class="f">Nome do contato<input id="e_nome" value="${esc(l.nome)}" placeholder="José"></label>
+        <label class="f">WhatsApp<input id="e_telefone" inputmode="tel" value="${esc(l.telefone)}"></label>
+        <label class="f">Instagram<input id="e_instagram" value="${esc(l.instagram)}" placeholder="@perfil"></label>
+        <label class="f">Segmento<input id="e_segmento" value="${esc(l.segmento)}"></label>
+        <label class="f">Cidade<input id="e_cidade" value="${esc(l.cidade)}"></label>
+        <label class="f">Projeto<select id="e_projeto">${Object.entries(PROJ).map(([k,t])=>`<option value="${k}" ${l.projeto===k?"selected":""}>${t}</option>`).join("")}</select></label>
+        <label class="f">Etapa<select id="e_status">${STAGES.map(s=>`<option value="${s.k}" ${l.status===s.k?"selected":""}>${s.t}</option>`).join("")}</select></label>
+        <label class="f">Avaliações no Google<input id="e_avaliacoes" type="number" min="0" value="${esc(l.avaliacoes)}"></label>
+        <label class="f">Tem site?<select id="e_temSite"><option value="">Não sei</option><option value="nao" ${l.temSite==="nao"?"selected":""}>Não</option><option value="sim" ${l.temSite==="sim"?"selected":""}>Sim</option></select></label>
+        <label class="f">Valor (R$)<input id="e_valor" type="number" min="0" step="1" value="${esc(l.valor)}"></label>
+        <label class="f">Próximo contato<input id="e_proximo" type="date" value="${esc(l.proximo)}"></label>
+        <label class="f">Origem<select id="e_origem">${["Prospecção ativa","Indicação","Instagram","WhatsApp","Presencial","Outro"].map(o=>`<option ${l.origem===o?"selected":""}>${o}</option>`).join("")}</select></label>
+      </div>
+      <label class="f">Anotações<textarea id="e_notas" placeholder="O que foi conversado, objeções, horário bom pra ligar…">${esc(l.notas)}</textarea></label>
+      <div class="row">
+        <button class="btn primary" type="submit">Salvar</button>
+        ${lead?`<button class="btn" type="button" id="shMsg">Mensagem</button><span style="flex:1"></span><button class="btn ghost" type="button" id="shDel">Apagar</button>`:""}
+      </div>
+      <div id="delConfirm" hidden class="row" style="color:var(--hot);font-weight:600">Apagar este lead de vez? <button class="btn small" type="button" id="delYes">Sim, apagar</button><button class="btn small ghost" type="button" id="delNo">Cancelar</button></div>
+    </form></div></div>`;
+  const close = () => root.innerHTML = "";
+  $("#shX").onclick = close;
+  $("#ov").onclick = e => { if (e.target.id==="ov") close(); };
+  $("#shF").onsubmit = async e => {
+    e.preventDefault();
+    ["negocio","nome","telefone","instagram","segmento","cidade","projeto","status","avaliacoes","temSite","valor","proximo","origem","notas"].forEach(k=>l[k]=$("#e_"+k).value.trim());
+    if (!l.negocio && !l.nome){ toast("Preencha o negócio ou o nome"); return; }
+    delete l.exemplo;
+    const id = await saveLead(l); if (id){ close(); toast("Lead salvo"); }
+  };
+  if (lead){
+    $("#shMsg").onclick = () => { close(); goMsg(lead.id); };
+    $("#shDel").onclick = () => $("#delConfirm").hidden = false;
+    $("#delNo").onclick = () => $("#delConfirm").hidden = true;
+    $("#delYes").onclick = async () => { await deleteLead(lead.id); close(); toast("Lead apagado"); };
+  }
+  setTimeout(()=>$("#e_negocio").focus(),30);
+}
+
+/* ---------- Prospectar ---------- */
+function updateLinks(){
+  const seg=$("#pSeg").value.trim(), city=$("#pCity").value.trim();
+  const q = [seg, city].filter(Boolean).join(" em ");
+  $("#lnkMaps").href = "https://www.google.com/maps/search/"+encodeURIComponent(q||"comércio perto de mim");
+  $("#lnkInsta").href = "https://www.google.com/search?q="+encodeURIComponent("site:instagram.com "+[seg,city].join(" "));
+}
+function fitInfo(aval, semSite){
+  const nfc = aval!=="" && +aval < 80, site = semSite;
+  return {nfc, site, projeto: nfc&&site?"ambos":site?"sites":"nfc"};
+}
+function renderFit(){
+  const a=$("#qAval").value, s=$("#qSemSite").checked, f=fitInfo(a,s);
+  $("#fit").innerHTML = `<div class="fitbox nfc ${f.nfc?"on":""}"><b>Placa NFC</b>${a===""?"Informe as avaliações.":f.nfc?`Só ${a} avaliações: a placa ajuda a subir no Maps.`:`Já tem ${a} avaliações. Dá pra oferecer Pix ou Instagram na placa.`}</div>
+    <div class="fitbox site ${f.site?"on":""}"><b>Site</b>${s?"Sem site: oportunidade clara.":"Tem site ou não verificado."}</div>`;
+}
+async function quickSave(){
+  const neg=$("#qNeg").value.trim(); if(!neg){ toast("Coloque o nome do negócio"); return; }
+  const a=$("#qAval").value, s=$("#qSemSite").checked, f=fitInfo(a,s);
+  const notas = [$("#qNota").value?`Nota no Google: ${$("#qNota").value}`:"", $("#qInsta").checked?"Instagram ativo":""].filter(Boolean).join(" · ");
+  const id = await saveLead({negocio:neg, telefone:$("#qTel").value.trim(), segmento:$("#pSeg").value.trim(), cidade:$("#pCity").value.trim(),
+    avaliacoes:a, temSite:s?"nao":"", projeto:f.projeto, status:"novo", origem:"Prospecção ativa", notas, proximo:today(), criadoEm:new Date().toISOString()});
+  if (id){ ["#qNeg","#qTel","#qAval","#qNota"].forEach(x=>$(x).value=""); $("#qSemSite").checked=false; $("#qInsta").checked=false; renderFit(); toast(neg+" salvo no funil"); }
+}
+
+/* ---------- Mensagens ---------- */
+function curLead(){ return leads.find(l=>l.id===$("#mLead").value); }
+function fillTpls(){ const p=$("#mProj").value, cur=$("#mTpl").value; $("#mTpl").innerHTML = TPL[p].map(t=>`<option value="${t.k}">${t.t}</option>`).join(""); if (TPL[p].some(t=>t.k===cur)) $("#mTpl").value=cur; }
+function buildMsg(){
+  const l = curLead()||{}, p=$("#mProj").value, t=TPL[p].find(x=>x.k===$("#mTpl").value)||TPL[p][0];
+  const first = (l.nome||"").split(" ")[0];
+  const txt = t.s.replace("{nome}", first?" "+first:"").replace(/\{negocio\}/g, l.negocio||"sua empresa")
+    .replace("{aval_txt}", l.avaliacoes!==undefined && l.avaliacoes!=="" ? ` e reparei que vocês têm ${l.avaliacoes} avaliações` : "");
+  $("#mText").textContent = txt; updateWa();
+}
+function updateWa(){
+  const l=curLead(), n=waNum(l?.telefone), txt=$("#mText").innerText;
+  $("#mWa").href = "https://wa.me/"+(n||"")+"?text="+encodeURIComponent(txt);
+  $("#mPhone").textContent = l ? (n ? "Número: +"+n : "Este lead não tem WhatsApp salvo; o WhatsApp vai abrir para você escolher o contato.") : "";
+}
+function renderMsgLeads(){
+  const sel=$("#mLead"), cur=sel.value;
+  const L=[...leads].filter(l=>!["fechado","perdido"].includes(l.status)).sort((a,b)=>(a.negocio||a.nome||"").localeCompare(b.negocio||b.nome||""));
+  sel.innerHTML = `<option value="">Sem lead (texto genérico)</option>`+L.map(l=>`<option value="${l.id}">${esc(l.negocio||l.nome)} · ${ST[l.status]?.t||""}</option>`).join("");
+  if (L.some(l=>l.id===cur)) sel.value=cur;
+}
+function goMsg(id){
+  renderMsgLeads(); $("#mLead").value=id; const l=curLead();
+  if (l){ $("#mProj").value = l.projeto==="sites"?"sites":"nfc"; fillTpls();
+    $("#mTpl").value = {novo:"primeiro",contatado:"followup",interessado:"proposta",proposta:"fechamento"}[l.status]||"primeiro"; }
+  buildMsg(); show("mensagens");
+}
+let sample=null;
+async function initAI(){
+  try { sample = window.claude?.use ? await window.claude.use("sample") : null; } catch { sample=null; }
+  if (sample) $("#mAI").hidden=false;
+}
+async function rewriteAI(){
+  if(!sample) return; const l=curLead()||{}; const btn=$("#mAI"); btn.disabled=true; $("#mAIstate").textContent="Escrevendo…";
+  const prompt = `Você escreve mensagens curtas de prospecção pelo WhatsApp, em português do Brasil, tom simpático e direto, sem emojis exagerados, sem parecer robô. Reescreva a mensagem abaixo deixando-a mais natural e personalizada para este negócio. Máximo 90 palavras. Responda só com o texto final.
+
+Produto: ${$("#mProj").value==="nfc"?"placas NFC que levam o cliente para avaliação do Google, Pix ou Instagram":"criação de sites para pequenos negócios"}
+Negócio: ${l.negocio||"não informado"} | Segmento: ${l.segmento||"?"} | Cidade: ${l.cidade||"?"} | Avaliações no Google: ${l.avaliacoes||"?"} | Tem site: ${l.temSite||"?"}
+Anotações: ${l.notas||"nenhuma"}
+Etapa da conversa: ${$("#mTpl").selectedOptions[0]?.textContent}
+
+Mensagem base:
+${$("#mText").innerText}`;
+  try { const r = await sample(prompt,{modelTier:"quick", cache:false, onText:({text})=>{ $("#mText").textContent=text; }}); $("#mText").textContent=r.text.trim(); $("#mAIstate").textContent=""; updateWa(); }
+  catch(e){ $("#mAIstate").textContent = e.code==="not_granted" ? "IA não liberada nesta página." : e.code==="rate_limited" ? "Muitas tentativas, espere um pouco." : "Não deu certo agora."; if(e.code==="not_granted") btn.hidden=true; }
+  btn.disabled=false;
+}
+
+/* ---------- Navegação ---------- */
+const TABS=["funil","leads","prospectar","mensagens"];
+function show(t){
+  if(!TABS.includes(t)) t="funil";
+  TABS.forEach(x=>$("#tab-"+x).hidden = x!==t);
+  $$("nav.tabs button").forEach(b=>b.setAttribute("aria-current", b.dataset.tab===t));
+  if (location.hash.slice(1)!==t) history.replaceState(null,"","#"+t);
+  if (t==="mensagens"){ renderMsgLeads(); if(!$("#mText").textContent) buildMsg(); }
+  window.scrollTo(0,0);
+}
+function render(){ renderFunil(); renderLeads(); renderMsgLeads(); }
+
+/* ---------- Eventos ---------- */
+$("#fStatus").innerHTML += STAGES.map(s=>`<option value="${s.k}">${s.t}</option>`).join("");
+$("#ideas").innerHTML = SEGS.map(s=>`<button type="button">${s}</button>`).join("");
+$("#ideas").onclick = e => { if(e.target.tagName==="BUTTON"){ $("#pSeg").value=e.target.textContent; updateLinks(); } };
+["#pSeg","#pCity"].forEach(x=>$(x).addEventListener("input",updateLinks));
+["#qAval","#qSemSite"].forEach(x=>$(x).addEventListener("input",renderFit));
+$("#qSave").onclick = quickSave;
+["#q","#fProj","#fStatus"].forEach(x=>$(x).addEventListener("input",renderLeads));
+$("#projFilter").onclick = e => { const b=e.target.closest("button"); if(!b) return; projF=b.dataset.p; $$("#projFilter button").forEach(x=>x.setAttribute("aria-pressed",x===b)); renderFunil(); };
+$("#mLead").onchange = () => { const l=curLead(); if(l && l.projeto!=="ambos") { $("#mProj").value = l.projeto==="sites"?"sites":"nfc"; fillTpls(); } buildMsg(); };
+$("#mProj").onchange = () => { fillTpls(); buildMsg(); };
+$("#mTpl").onchange = buildMsg;
+$("#mText").addEventListener("input", updateWa);
+$("#mAI").onclick = rewriteAI;
+$("#mCopy").onclick = async () => { const txt=$("#mText").innerText; try { await navigator.clipboard.writeText(txt); toast("Mensagem copiada"); } catch { const r=document.createRange(); r.selectNodeContents($("#mText")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Texto selecionado: copie com o menu"); } };
+$("#mMark").onclick = async () => { const l=curLead(); if(!l){ toast("Escolha um lead primeiro"); return; }
+  const d=new Date(); d.setDate(d.getDate()+2);
+  const up={...l, status: l.status==="novo"?"contatado":l.status, proximo:d.toISOString().slice(0,10)};
+  if (await saveLead(up)) toast("Marcado. Retorno agendado para "+fmtDate(up.proximo)); };
+document.addEventListener("click", e => {
+  const t=e.target.closest("[data-tab],[data-go],[data-new],[data-edit],[data-msg]"); if(!t) return;
+  if (t.dataset.tab) show(t.dataset.tab);
+  else if (t.dataset.go) show(t.dataset.go);
+  else if (t.hasAttribute("data-new")) openEditor(null);
+  else if (t.dataset.edit) openEditor(leads.find(l=>l.id===t.dataset.edit));
+  else if (t.dataset.msg) goMsg(t.dataset.msg);
+});
+document.addEventListener("keydown", e => { if(e.key==="Escape") $("#sheetRoot").innerHTML=""; });
+window.addEventListener("hashchange", ()=>show(location.hash.slice(1)));
+
+$("#bkOut").onclick = () => {
+  const blob = new Blob([JSON.stringify({app:"radar-de-leads",versao:1,exportadoEm:new Date().toISOString(),leads},null,2)],{type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "radar-leads-"+today()+".json"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000); toast("Backup baixado");
+};
+$("#bkIn").onchange = async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try { const d = JSON.parse(await f.text()); const arr = Array.isArray(d) ? d : d.leads; if(!Array.isArray(arr)) throw 0;
+    const byId = new Map(leads.map(l=>[l.id,l])); arr.forEach(l=>{ if(l && l.id) byId.set(l.id,l); });
+    leads = [...byId.values()]; saveLocal(); render(); toast(arr.length+" leads restaurados");
+  } catch { toast("Arquivo de backup inválido"); }
+  e.target.value = "";
+};
+try { if (!loadLocal().length && !localStorage.getItem(LKEY+"-seeded")) {
+  leads = [
+    {id:"exemplo1",exemplo:true,negocio:"Barbearia Navalha (exemplo)",nome:"Rafael",segmento:"barbearia",cidade:"Campinas",projeto:"nfc",status:"novo",avaliacoes:"18",temSite:"",origem:"Prospecção ativa",notas:"Lead de exemplo: pode apagar.",proximo:today(),atualizadoEm:"2026-11-05T12:00:00Z"},
+    {id:"exemplo2",exemplo:true,negocio:"Pizzaria Forno a Lenha (exemplo)",nome:"Carla",segmento:"pizzaria",cidade:"Campinas",projeto:"ambos",status:"contatado",avaliacoes:"42",temSite:"nao",origem:"Instagram",notas:"Lead de exemplo: pode apagar.",proximo:today(),atualizadoEm:"2026-11-04T12:00:00Z"}
+  ];
+  localStorage.setItem(LKEY+"-seeded","1"); saveLocal();
+} } catch {}
+fillTpls(); updateLinks(); renderFit(); show(location.hash.slice(1)); boot();
+})();
+</script>
+
+</body>
+</html>
