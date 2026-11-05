@@ -198,6 +198,30 @@ textarea{resize:vertical;min-height:90px;line-height:1.5}
       <button class="btn primary" data-new>+ Novo lead</button>
       <button class="btn" data-go="prospectar">Buscar empresas no Maps</button>
     </div>
+    <div class="panel" style="margin-top:16px" id="syncPanel">
+      <div class="row" style="justify-content:space-between">
+        <div class="eyebrow">Sincronizar celular e computador</div>
+        <span class="chip st" id="syncChip" style="--c:var(--dead)">Desligada</span>
+      </div>
+      <div id="syncOff">
+        <p style="margin:6px 0 10px;color:var(--muted);font-size:14px;max-width:62ch">Seus leads ficam num Gist secreto da sua conta do GitHub. Faça isso uma vez em cada aparelho:</p>
+        <ol style="margin:0 0 12px;padding-left:20px;font-size:14px;display:flex;flex-direction:column;gap:4px;max-width:62ch">
+          <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Radar%20de%20Leads" target="_blank" rel="noopener">Crie um token no GitHub</a> (a opção <b>gist</b> já vem marcada). Em <b>Expiration</b>, escolha <b>No expiration</b> e clique em <b>Generate token</b>.</li>
+          <li>Copie o código que começa com <span class="num">ghp_</span> e cole aqui embaixo. Use o mesmo token em todos os aparelhos.</li>
+        </ol>
+        <div class="row">
+          <input id="syncToken" type="password" autocomplete="off" placeholder="ghp_…" aria-label="Token do GitHub" style="flex:1 1 220px;width:auto">
+          <button class="btn primary" id="syncOn">Conectar</button>
+        </div>
+      </div>
+      <div id="syncOnBox" hidden>
+        <p id="syncInfo" style="margin:6px 0 10px;color:var(--muted);font-size:14px"></p>
+        <div class="row">
+          <button class="btn" id="syncNow">Sincronizar agora</button>
+          <button class="btn ghost" id="syncOffBtn">Desconectar este aparelho</button>
+        </div>
+      </div>
+    </div>
     <div class="panel" style="margin-top:16px">
       <div class="eyebrow">Backup</div>
       <p style="margin:6px 0 10px;color:var(--muted);font-size:14px;max-width:62ch">Os leads ficam salvos neste navegador. Baixe um backup de vez em quando e use “Restaurar” para levar seus leads para outro aparelho.</p>
@@ -338,7 +362,11 @@ let leads = [];
 let db = null, col = null, mode = "local";
 const LKEY = "radar-leads-v1";
 function loadLocal(){ try { return JSON.parse(localStorage.getItem(LKEY)||"[]"); } catch { return []; } }
-function saveLocal(){ try { localStorage.setItem(LKEY, JSON.stringify(leads)); } catch {} }
+let removidos = (()=>{ try { return JSON.parse(localStorage.getItem(LKEY+"-del")||"{}"); } catch { return {}; } })();
+function saveLocal(fromSync){
+  try { localStorage.setItem(LKEY, JSON.stringify(leads)); localStorage.setItem(LKEY+"-del", JSON.stringify(removidos)); } catch {}
+  if (!fromSync) Sync.schedule();
+}
 function setNote(msg, warn){ const n=$("#note"); n.textContent=msg; n.classList.toggle("warn",!!warn); n.hidden = !msg; }
 
 async function saveLead(lead){
@@ -354,6 +382,7 @@ async function saveLead(lead){
 }
 async function deleteLead(id){
   if (mode==="db"){ try { await col.doc(id).delete(); } catch(e){ toast("Não apagou: "+(e.message||e.code)); } return; }
+  removidos[id] = new Date().toISOString();
   leads = leads.filter(l=>l.id!==id); saveLocal(); render();
 }
 
@@ -579,6 +608,103 @@ document.addEventListener("click", e => {
 document.addEventListener("keydown", e => { if(e.key==="Escape") $("#sheetRoot").innerHTML=""; });
 window.addEventListener("hashchange", ()=>show(location.hash.slice(1)));
 
+/* ---------- Sincronização via Gist secreto ---------- */
+var Sync = (() => {
+  const API = "https://api.github.com", FILE = "radar-leads.json", DESC = "Radar de Leads - dados (não apagar)";
+  const K = {tok: LKEY+"-gh-token", gist: LKEY+"-gh-gist", last: LKEY+"-gh-last"};
+  const get = k => { try { return localStorage.getItem(k)||""; } catch { return ""; } };
+  const put = (k,v) => { try { v ? localStorage.setItem(k,v) : localStorage.removeItem(k); } catch {} };
+  let timer = null, busy = false, again = false, ready = false;
+  const on = () => !!get(K.tok) && mode !== "db";
+  async function gh(path, opts={}){
+    const r = await fetch(API+path, {...opts, headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+get(K.tok),"X-GitHub-Api-Version":"2022-11-28",...(opts.body?{"Content-Type":"application/json"}:{})}});
+    if (r.status===401) throw new Error("Token inválido ou expirado. Crie um novo e conecte de novo.");
+    if (r.status===403 || r.status===404) { const e = new Error("O token não tem permissão de gist."); e.status=r.status; throw e; }
+    if (!r.ok) throw new Error("GitHub respondeu "+r.status+".");
+    return r.status===204 ? null : r.json();
+  }
+  async function findGist(){
+    let id = get(K.gist);
+    if (id) return id;
+    for (let page=1; page<=5; page++){
+      const list = await gh("/gists?per_page=100&page="+page);
+      const g = list.find(g => g.description===DESC && g.files[FILE]);
+      if (g){ put(K.gist, g.id); return g.id; }
+      if (list.length<100) break;
+    }
+    const g = await gh("/gists",{method:"POST",body:JSON.stringify({description:DESC,public:false,files:{[FILE]:{content:JSON.stringify({leads:[],removidos:{}})}}})});
+    put(K.gist, g.id); return g.id;
+  }
+  async function readRemote(id){
+    const g = await gh("/gists/"+id);
+    const f = g.files[FILE]; if (!f) return {leads:[],removidos:{}};
+    let txt = f.content;
+    if (f.truncated) txt = await (await fetch(f.raw_url)).text();
+    try { return JSON.parse(txt); } catch { return {leads:[],removidos:{}}; }
+  }
+  function merge(remote){
+    const before = JSON.stringify([leads,removidos]);
+    for (const [id,ts] of Object.entries(remote.removidos||{})) if (!removidos[id] || ts>removidos[id]) removidos[id]=ts;
+    const byId = new Map(leads.map(l=>[l.id,l]));
+    for (const r of (remote.leads||[])) { if (!r || !r.id) continue; const l = byId.get(r.id); if (!l || (r.atualizadoEm||"") > (l.atualizadoEm||"")) byId.set(r.id, r); }
+    const cutoff = new Date(Date.now()-120*864e5).toISOString();
+    for (const [id,ts] of Object.entries(removidos)) if (ts<cutoff) delete removidos[id];
+    leads = [...byId.values()].filter(l => !(removidos[l.id] && removidos[l.id] >= (l.atualizadoEm||"")));
+    return before !== JSON.stringify([leads,removidos]);
+  }
+  async function run(){
+    if (!on()) return;
+    if (busy){ again = true; return; }
+    busy = true; status("Sincronizando…");
+    try {
+      const id = await findGist();
+      const remote = await readRemote(id);
+      merge(remote); saveLocal(true); render();
+      const content = JSON.stringify({app:"radar-de-leads",versao:1,leads,removidos});
+      if (content !== JSON.stringify({app:"radar-de-leads",versao:1,leads:remote.leads||[],removidos:remote.removidos||{}}))
+        await gh("/gists/"+id,{method:"PATCH",body:JSON.stringify({files:{[FILE]:{content}}})});
+      put(K.last, new Date().toISOString()); ready = true; status();
+    } catch(e){
+      if (e.status===404) put(K.gist,"");
+      status(e.message||"Sem conexão. Tento de novo em instantes.", true);
+    } finally {
+      busy = false;
+      if (again){ again = false; schedule(500); }
+    }
+  }
+  function schedule(ms=1500){ if (!on()) return; clearTimeout(timer); timer = setTimeout(run, ms); status("Alterações pendentes…"); }
+  function status(msg, warn){
+    const conn = on();
+    $("#syncOff").hidden = conn; $("#syncOnBox").hidden = !conn;
+    const chip = $("#syncChip");
+    if (!conn){ chip.textContent="Desligada"; chip.style.setProperty("--c","var(--dead)"); return; }
+    const last = get(K.last);
+    chip.textContent = warn ? "Com problema" : msg ? "Sincronizando" : "Ligada";
+    chip.style.setProperty("--c", warn ? "var(--hot)" : msg ? "var(--warn)" : "var(--ok)");
+    $("#syncInfo").textContent = msg || (last ? "Tudo sincronizado. Última vez: "+new Date(last).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})+"." : "Conectado.");
+    $("#syncInfo").style.color = warn ? "var(--hot)" : "";
+  }
+  async function connect(token){
+    put(K.tok, token.trim()); put(K.gist, "");
+    try { await gh("/gists?per_page=1"); }
+    catch(e){ put(K.tok,""); status(); toast(e.message); return; }
+    $("#syncToken").value = ""; toast("Conectado ao GitHub"); await run();
+  }
+  function disconnect(){ put(K.tok,""); put(K.gist,""); put(K.last,""); status(); toast("Este aparelho foi desconectado"); }
+  function start(){
+    status();
+    if (on()) run();
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState==="visible") run(); });
+    window.addEventListener("online", run);
+    setInterval(() => { if (document.visibilityState==="visible" && !busy) run(); }, 60000);
+  }
+  return {schedule, run, connect, disconnect, start};
+})();
+$("#syncOn").onclick = () => { const t = $("#syncToken").value.trim(); if (!t){ toast("Cole o token primeiro"); return; } Sync.connect(t); };
+$("#syncToken").addEventListener("keydown", e => { if (e.key==="Enter") $("#syncOn").click(); });
+$("#syncNow").onclick = () => Sync.run();
+$("#syncOffBtn").onclick = Sync.disconnect;
+
 $("#bkOut").onclick = () => {
   const blob = new Blob([JSON.stringify({app:"radar-de-leads",versao:1,exportadoEm:new Date().toISOString(),leads},null,2)],{type:"application/json"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "radar-leads-"+today()+".json"; document.body.appendChild(a); a.click(); a.remove();
@@ -599,7 +725,7 @@ try { if (!loadLocal().length && !localStorage.getItem(LKEY+"-seeded")) {
   ];
   localStorage.setItem(LKEY+"-seeded","1"); saveLocal();
 } } catch {}
-fillTpls(); updateLinks(); renderFit(); show(location.hash.slice(1)); boot();
+fillTpls(); updateLinks(); renderFit(); show(location.hash.slice(1)); boot().then(()=>Sync.start());
 })();
 </script>
 
