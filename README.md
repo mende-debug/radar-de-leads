@@ -20,6 +20,10 @@ CRM de captação de leads, feito para vender **placas NFC** (avaliação do Goo
 
 Também tem paleta de comandos (`Ctrl/⌘ K`), atalhos (`N` novo lead, `1–8` navegação) e instalação como app no celular (PWA, funciona offline).
 
+## Sites modelo
+
+- **Clínica odontológica:** https://mende-debug.github.io/radar-de-leads/modelos/odonto/ — toque em **Personalizar** para trocar nome, cidade, WhatsApp, endereço, CRO, nota no Google e cor, e copie um link próprio para cada cliente.
+
 ## Sincronização entre aparelhos
 
 Os dados ficam num **Gist secreto** da sua conta do GitHub. Em cada aparelho: *Configurações → Integrações*, crie um token com escopo `gist` e conecte. O app sincroniza ao salvar, ao voltar para a aba e a cada minuto. Os dados da versão anterior são migrados automaticamente.
