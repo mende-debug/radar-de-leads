@@ -4,7 +4,7 @@ CRM de bolso para captação de leads de dois projetos: **placas NFC** (avaliaç
 
 - **Funil:** etapas, conversão, faturamento e retornos do dia
 - **Leads:** cadastro, filtros e anotações
-- **Prospectar:** busca pronta no Google Maps e qualificação (NFC × Site)
+- **Prospectar:** busca automática de empresas por segmento e cidade (Google Places API ou OpenStreetMap grátis), com filtros (sem site, poucas avaliações, com telefone) e envio em lote para o funil
 - **Mensagens:** modelos de WhatsApp por etapa, com envio direto
 
 ## Sincronização entre aparelhos

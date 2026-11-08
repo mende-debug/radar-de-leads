@@ -132,6 +132,24 @@ textarea{resize:vertical;min-height:90px;line-height:1.5}
 .check{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--fg)}
 .check input{width:18px;height:18px}
 
+.ideas button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+details > summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-weight:600}
+details > summary::-webkit-details-marker{display:none}
+details > summary::before{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s;flex:none}
+details[open] > summary::before{transform:rotate(45deg)}
+.keybox{border-top:1px solid var(--line);padding-top:12px}
+.reslist{display:flex;flex-direction:column}
+.res{display:grid;grid-template-columns:22px 1fr auto;gap:4px 12px;align-items:start;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}
+.res:first-child{border-top:0}
+.res input{width:18px;height:18px;margin-top:3px}
+.res .body{min-width:0;display:flex;flex-direction:column;gap:4px}
+.res .nm{font-weight:700;overflow-wrap:anywhere}
+.res .meta{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.res .addr{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.res.dup{opacity:.55}
+.stars{color:var(--warn);font-weight:700}
+.chip.warn{background:none;border:1px solid var(--line);color:var(--muted)}
+
 /* Mensagens */
 .msgbox{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;font-size:14px;min-height:120px;overflow-wrap:anywhere}
 
@@ -249,44 +267,87 @@ textarea{resize:vertical;min-height:90px;line-height:1.5}
   <!-- PROSPECTAR -->
   <section id="tab-prospectar" hidden>
     <h2>Prospectar</h2>
-    <p class="lede">Ache negócios locais no Google Maps, veja se servem pra NFC (poucas avaliações) ou pra site (não têm site) e salve direto no funil.</p>
-    <div class="grid2">
-      <div class="panel steps">
-        <div class="step"><span class="k">1</span><div>
-          <h3>O que e onde buscar</h3>
-          <div class="fgrid" style="margin-top:10px">
-            <label class="f">Segmento<input id="pSeg" placeholder="ex.: barbearia"></label>
-            <label class="f">Cidade / bairro<input id="pCity" placeholder="ex.: Campinas"></label>
+    <p class="lede">Diga o segmento e a cidade. O app busca as empresas, mostra quem tem poucas avaliações (bom pra NFC) ou não tem site (bom pra site) e você manda os escolhidos pro funil.</p>
+
+    <div class="panel stack">
+      <div class="fgrid">
+        <label class="f">Segmentos <span style="font-weight:500">(separe por vírgula)</span><input id="pSeg" placeholder="ex.: barbearia, pizzaria"></label>
+        <label class="f">Cidades / bairros <span style="font-weight:500">(separe por vírgula)</span><input id="pCity" placeholder="ex.: Campinas, Valinhos"></label>
+      </div>
+      <div class="ideas" id="ideas" aria-label="Sugestões de segmento"></div>
+      <div class="row" style="gap:14px 18px">
+        <div class="seg" id="srcSel" role="group" aria-label="Fonte dos dados">
+          <button data-s="google" aria-pressed="true">Google Maps</button>
+          <button data-s="osm" aria-pressed="false">OpenStreetMap (grátis)</button>
+        </div>
+        <label class="check"><input type="checkbox" id="fSemSite"> Só quem não tem site</label>
+        <label class="check"><input type="checkbox" id="fTel" checked> Só com telefone</label>
+        <label class="check"><input type="checkbox" id="fNovo" checked> Esconder quem já está no funil</label>
+        <label class="check">Até <input id="fMaxAval" type="number" min="0" inputmode="numeric" placeholder="∞" style="width:76px;padding:6px 8px"> avaliações</label>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="sGo">Buscar leads</button>
+        <button class="btn" id="sStop" hidden>Parar</button>
+        <span id="sProg" style="font-size:13px;color:var(--muted)"></span>
+      </div>
+      <details id="gKeyBox" class="keybox">
+        <summary>Chave do Google <span class="chip st" id="gKeyChip" style="--c:var(--dead)">não configurada</span></summary>
+        <div class="stack" style="margin-top:10px">
+          <p style="margin:0;font-size:14px;color:var(--muted);max-width:66ch">A busca pelo Google Maps traz avaliações, nota, telefone e site de cada empresa. Ela usa a API do Google Places, que tem uma cota gratuita mensal (dá para milhares de empresas por mês). Configure uma vez em cada aparelho:</p>
+          <ol style="margin:0;padding-left:20px;font-size:14px;display:flex;flex-direction:column;gap:4px;max-width:66ch">
+            <li>Entre no <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud</a> e crie um projeto (ex.: Radar de Leads). Ele pede um cartão para ativar o faturamento, mas a cota gratuita cobre o uso normal.</li>
+            <li><a href="https://console.cloud.google.com/apis/library/places.googleapis.com" target="_blank" rel="noopener">Ative a “Places API (New)”</a>.</li>
+            <li>Em <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Credenciais</a>, clique em <b>Criar credenciais → Chave de API</b>.</li>
+            <li>Proteja a chave: em <b>Restrições do aplicativo</b> escolha <b>Sites</b> e adicione <span class="num">mende-debug.github.io/*</span>. Em <b>Restrições de API</b>, marque só a <b>Places API (New)</b>.</li>
+            <li>Cole a chave aqui:</li>
+          </ol>
+          <div class="row">
+            <input id="gKey" type="password" autocomplete="off" placeholder="AIza…" aria-label="Chave da API do Google" style="flex:1 1 220px;width:auto">
+            <button class="btn" id="gKeySave">Salvar chave</button>
+            <button class="btn ghost" id="gKeyDel" hidden>Remover</button>
           </div>
-          <div class="ideas" id="ideas"></div>
-        </div></div>
-        <div class="step"><span class="k">2</span><div>
-          <h3>Abra a busca</h3>
-          <p style="margin:6px 0 10px;color:var(--muted);font-size:14px">Abre em outra aba. Olhe o número de avaliações e se aparece botão “Site”.</p>
+          <p style="margin:0;font-size:13px;color:var(--muted)">Sem chave? Use a fonte <b>OpenStreetMap (grátis)</b>: não precisa de cadastro, mas tem menos empresas e não mostra avaliações.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="panel" id="resPanel" style="margin-top:14px" hidden>
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <div><h3 id="resTitle">Resultados</h3><span id="resSub" style="font-size:13px;color:var(--muted)"></span></div>
+        <div class="row">
+          <button class="btn small" id="rAll">Selecionar todos</button>
+          <button class="btn small primary" id="rAdd" disabled>Adicionar ao funil</button>
+        </div>
+      </div>
+      <div class="reslist" id="resList"></div>
+    </div>
+
+    <details class="panel" style="margin-top:14px" id="manualBox">
+      <summary><h3 style="display:inline">Adicionar uma empresa manualmente</h3></summary>
+      <div class="grid2" style="margin-top:12px">
+        <div class="stack">
+          <p style="margin:0;color:var(--muted);font-size:14px">Abra a busca em outra aba, olhe o número de avaliações e se aparece o botão “Site”.</p>
           <div class="row">
             <a class="btn" id="lnkMaps" target="_blank" rel="noopener" href="https://www.google.com/maps">Google Maps</a>
             <a class="btn" id="lnkInsta" target="_blank" rel="noopener" href="https://www.google.com/search?q=site%3Ainstagram.com">Instagram via Google</a>
           </div>
-        </div></div>
-      </div>
-      <div class="panel steps">
-        <div class="step"><span class="k">3</span><div>
-          <h3>Qualifique e salve</h3>
-          <div class="fgrid" style="margin-top:10px">
+        </div>
+        <div class="stack">
+          <div class="fgrid">
             <label class="f">Nome do negócio<input id="qNeg" placeholder="ex.: Barbearia do Zé"></label>
             <label class="f">WhatsApp / telefone<input id="qTel" inputmode="tel" placeholder="(19) 99999-9999"></label>
             <label class="f">Avaliações no Google<input id="qAval" type="number" min="0" inputmode="numeric" placeholder="ex.: 23"></label>
             <label class="f">Nota<input id="qNota" type="number" min="0" max="5" step="0.1" inputmode="decimal" placeholder="ex.: 4,6"></label>
           </div>
-          <div class="row" style="margin-top:10px">
+          <div class="row">
             <label class="check"><input type="checkbox" id="qSemSite"> Não tem site</label>
             <label class="check"><input type="checkbox" id="qInsta"> Tem Instagram ativo</label>
           </div>
           <div class="fit" id="fit"></div>
-          <div class="row" style="margin-top:12px"><button class="btn primary" id="qSave">Salvar no funil</button></div>
-        </div></div>
+          <div class="row"><button class="btn primary" id="qSave">Salvar no funil</button></div>
+        </div>
       </div>
-    </div>
+    </details>
   </section>
 
   <!-- MENSAGENS -->
@@ -494,8 +555,10 @@ function openEditor(lead){
 }
 
 /* ---------- Prospectar ---------- */
+const list = s => s.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);
 function updateLinks(){
-  const seg=$("#pSeg").value.trim(), city=$("#pCity").value.trim();
+  const seg=list($("#pSeg").value)[0]||"", city=list($("#pCity").value)[0]||"";
+  $$("#ideas button").forEach(b=>b.setAttribute("aria-pressed", list($("#pSeg").value).map(x=>x.toLowerCase()).includes(b.textContent)));
   const q = [seg, city].filter(Boolean).join(" em ");
   $("#lnkMaps").href = "https://www.google.com/maps/search/"+encodeURIComponent(q||"comércio perto de mim");
   $("#lnkInsta").href = "https://www.google.com/search?q="+encodeURIComponent("site:instagram.com "+[seg,city].join(" "));
@@ -513,7 +576,7 @@ async function quickSave(){
   const neg=$("#qNeg").value.trim(); if(!neg){ toast("Coloque o nome do negócio"); return; }
   const a=$("#qAval").value, s=$("#qSemSite").checked, f=fitInfo(a,s);
   const notas = [$("#qNota").value?`Nota no Google: ${$("#qNota").value}`:"", $("#qInsta").checked?"Instagram ativo":""].filter(Boolean).join(" · ");
-  const id = await saveLead({negocio:neg, telefone:$("#qTel").value.trim(), segmento:$("#pSeg").value.trim(), cidade:$("#pCity").value.trim(),
+  const id = await saveLead({negocio:neg, telefone:$("#qTel").value.trim(), segmento:list($("#pSeg").value)[0]||"", cidade:list($("#pCity").value)[0]||"",
     avaliacoes:a, temSite:s?"nao":"", projeto:f.projeto, status:"novo", origem:"Prospecção ativa", notas, proximo:today(), criadoEm:new Date().toISOString()});
   if (id){ ["#qNeg","#qTel","#qAval","#qNota"].forEach(x=>$(x).value=""); $("#qSemSite").checked=false; $("#qInsta").checked=false; renderFit(); toast(neg+" salvo no funil"); }
 }
@@ -577,11 +640,175 @@ function show(t){
   window.scrollTo(0,0);
 }
 function render(){ renderFunil(); renderLeads(); renderMsgLeads(); }
+/* ---------- Busca automática ---------- */
+const GKEY = LKEY+"-gkey";
+const gKey = () => { try { return localStorage.getItem(GKEY)||""; } catch { return ""; } };
+let fonte = "google", results = [], selected = new Set(), searching = null;
+const OSM_TAGS = {
+  "barbearia":['["shop"="hairdresser"]["name"~"barb",i]','["shop"="barber"]'],
+  "salão de beleza":['["shop"="hairdresser"]','["shop"="beauty"]'],
+  "restaurante":['["amenity"="restaurant"]'],
+  "hamburgueria":['["cuisine"~"burger"]'],
+  "pizzaria":['["cuisine"~"pizza"]'],
+  "clínica odontológica":['["amenity"="dentist"]','["healthcare"="dentist"]'],
+  "clínica de estética":['["shop"="beauty"]'],
+  "academia":['["leisure"="fitness_centre"]'],
+  "pet shop":['["shop"="pet"]','["amenity"="veterinary"]'],
+  "oficina mecânica":['["shop"="car_repair"]'],
+  "imobiliária":['["office"="estate_agent"]'],
+  "advogado":['["office"="lawyer"]'],
+  "padaria":['["shop"="bakery"]'],
+  "loja de roupas":['["shop"="clothes"]']
+};
+const normName = s => String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+function isMobile(tel){ let d=digits(tel); if(d.startsWith("55")&&d.length>11) d=d.slice(2); return d.length===11 && d[2]==="9"; }
+function inFunnel(r){
+  const tel = digits(r.telefone).slice(-8), nm = normName(r.nome);
+  return leads.some(l => (r.placeId && l.placeId===r.placeId) || (tel.length===8 && digits(l.telefone).slice(-8)===tel) || (nm && normName(l.negocio)===nm && normName(l.cidade)===normName(r.cidade)));
+}
+function score(r){ let s=0; if(!r.site) s+=2; if(r.avaliacoes!=null && r.avaliacoes<80) s+=2 - r.avaliacoes/80; if(isMobile(r.telefone)) s+=1; if(r.telefone) s+=.5; return s; }
+
+async function googleSearch(q, token, signal){
+  const r = await fetch("https://places.googleapis.com/v1/places:searchText", {method:"POST", signal,
+    headers:{"Content-Type":"application/json","X-Goog-Api-Key":gKey(),
+      "X-Goog-FieldMask":"places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.googleMapsUri,places.businessStatus,places.primaryTypeDisplayName,nextPageToken"},
+    body: JSON.stringify({textQuery:q, languageCode:"pt-BR", regionCode:"BR", pageSize:20, ...(token?{pageToken:token}:{})})});
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok){
+    const m = j.error?.message || ("Google respondeu "+r.status);
+    throw new Error(/API key not valid/i.test(m) ? "Chave do Google inválida. Confira se copiou a chave inteira." :
+      /referer|referrer/i.test(m) ? "A chave está bloqueada para este site. Em Restrições do aplicativo, adicione mende-debug.github.io/*." :
+      /not been used|disabled|SERVICE_DISABLED/i.test(m) ? "Ative a “Places API (New)” no seu projeto do Google Cloud." :
+      /billing/i.test(m) ? "Ative o faturamento do projeto no Google Cloud (a cota gratuita continua valendo)." : m);
+  }
+  return j;
+}
+async function runGoogle(seg, city, signal, onPage){
+  let token = null, page = 0;
+  do {
+    const j = await googleSearch(seg+" em "+city, token, signal);
+    page++;
+    onPage((j.places||[]).filter(p=>p.businessStatus!=="CLOSED_PERMANENTLY").map(p=>({
+      placeId:p.id, nome:p.displayName?.text||"", endereco:p.formattedAddress||"", telefone:p.nationalPhoneNumber||p.internationalPhoneNumber||"",
+      site:p.websiteUri||"", nota:p.rating ?? null, avaliacoes:p.userRatingCount ?? 0, mapsUrl:p.googleMapsUri||"",
+      tipo:p.primaryTypeDisplayName?.text||"", segmento:seg, cidade:city, fonte:"Google Maps"})), page);
+    token = j.nextPageToken;
+    if (token) await new Promise(r=>setTimeout(r,1200));
+  } while (token && page<3 && !signal.aborted);
+}
+async function runOsm(seg, city, signal, onPage){
+  const g = await (await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q="+encodeURIComponent(city),{signal})).json();
+  if (!g.length) throw new Error("Não achei a cidade “"+city+"” no mapa.");
+  const [s,n,w,e] = g[0].boundingbox.map(Number);
+  const bbox = `(${s},${w},${n},${e})`;
+  const key = Object.keys(OSM_TAGS).find(k=>normName(k)===normName(seg));
+  const sels = key ? OSM_TAGS[key] : [`["name"~"${seg.replace(/["\\]/g,"")}",i]`];
+  const q = `[out:json][timeout:25];(${sels.map(t=>`nwr${t}${bbox};`).join("")});out center tags 300;`;
+  const r = await fetch("https://overpass-api.de/api/interpreter",{method:"POST",signal,body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+  if (!r.ok) throw new Error("O OpenStreetMap está ocupado agora ("+r.status+"). Tente de novo em 1 minuto.");
+  const j = await r.json();
+  onPage((j.elements||[]).filter(x=>x.tags?.name).map(x=>{ const t=x.tags, lat=x.lat??x.center?.lat, lon=x.lon??x.center?.lon;
+    return {placeId:"osm:"+x.type+"/"+x.id, nome:t.name, endereco:[t["addr:street"],t["addr:housenumber"],t["addr:suburb"]].filter(Boolean).join(", ")||city,
+      telefone:t.phone||t["contact:phone"]||t["contact:whatsapp"]||t.mobile||"", site:t.website||t["contact:website"]||"",
+      instagram:t["contact:instagram"]||"", nota:null, avaliacoes:null,
+      mapsUrl: lat ? `https://www.google.com/maps/search/${encodeURIComponent(t.name)}/@${lat},${lon},18z` : "",
+      tipo:"", segmento:seg, cidade:city, fonte:"OpenStreetMap"}; }), 1);
+}
+async function startSearch(){
+  const segs = list($("#pSeg").value), cities = list($("#pCity").value);
+  if (!segs.length || !cities.length){ toast("Preencha o segmento e a cidade"); return; }
+  if (fonte==="google" && !gKey()){ $("#gKeyBox").open = true; toast("Configure a chave do Google ou use o OpenStreetMap"); $("#gKey").focus(); return; }
+  const combos = segs.flatMap(s=>cities.map(c=>[s,c])).slice(0,20);
+  results = []; selected.clear(); renderResults();
+  const ctl = new AbortController(); searching = ctl;
+  $("#sGo").disabled = true; $("#sStop").hidden = false; $("#resPanel").hidden = false;
+  const seen = new Set(); let erros = [];
+  for (const [i,[seg,city]] of combos.entries()){
+    if (ctl.signal.aborted) break;
+    $("#sProg").textContent = `Buscando ${seg} em ${city}${combos.length>1?` (${i+1} de ${combos.length})`:""}…`;
+    try {
+      await (fonte==="google"?runGoogle:runOsm)(seg, city, ctl.signal, (items, page) => {
+        for (const it of items){ const k = it.placeId || normName(it.nome)+digits(it.telefone); if (seen.has(k)) continue; seen.add(k); results.push(it); }
+        if (page>1) $("#sProg").textContent = `Buscando ${seg} em ${city} (página ${page})…`;
+        renderResults();
+      });
+    } catch(e){ if (e.name==="AbortError") break; erros.push(e.message||String(e)); if (/chave|Places API|faturamento|bloqueada/i.test(e.message)) break; }
+  }
+  searching = null; $("#sGo").disabled = false; $("#sStop").hidden = true;
+  $("#sProg").textContent = erros.length ? erros[0] : ctl.signal.aborted ? "Busca interrompida." : `Pronto: ${results.length} empresas encontradas.`;
+  $("#sProg").style.color = erros.length ? "var(--hot)" : "";
+  renderResults();
+}
+function visibleResults(){
+  const max = $("#fMaxAval").value, semSite=$("#fSemSite").checked, tel=$("#fTel").checked, novo=$("#fNovo").checked;
+  return results.map(r=>({...r, dup:inFunnel(r)})).filter(r =>
+    (!semSite || !r.site) && (!tel || r.telefone) && (!novo || !r.dup) && (max==="" || r.avaliacoes==null || r.avaliacoes<=+max)
+  ).sort((a,b)=>score(b)-score(a));
+}
+function renderResults(){
+  const V = visibleResults(), keys = new Set(V.map(r=>r.placeId));
+  for (const k of [...selected]) if (!keys.has(k)) selected.delete(k);
+  $("#resTitle").textContent = V.length + (V.length===1?" lead encontrado":" leads encontrados");
+  $("#resSub").textContent = results.length > V.length ? `${results.length-V.length} escondidos pelos filtros` : "Os melhores aparecem primeiro: sem site e com poucas avaliações.";
+  $("#rAdd").disabled = !selected.size; $("#rAdd").textContent = selected.size ? `Adicionar ${selected.size} ao funil` : "Adicionar ao funil";
+  $("#rAll").textContent = V.length && V.every(r=>selected.has(r.placeId)) ? "Limpar seleção" : "Selecionar todos";
+  $("#resList").innerHTML = V.length ? V.map(r=>{
+    const f = fitInfo(r.avaliacoes==null?"":String(r.avaliacoes), !r.site);
+    return `<label class="res ${r.dup?"dup":""}">
+      <input type="checkbox" data-k="${esc(r.placeId)}" ${selected.has(r.placeId)?"checked":""} ${r.dup?"disabled":""} aria-label="Selecionar ${esc(r.nome)}">
+      <div class="body">
+        <span class="nm">${esc(r.nome)}</span>
+        <span class="meta">
+          ${r.nota!=null?`<span class="stars">★ ${String(r.nota).replace(".",",")}</span>`:""}
+          ${r.avaliacoes!=null?`<span><span class="num">${r.avaliacoes}</span> avaliações</span>`:`<span>avaliações: ver no Maps</span>`}
+          ${r.telefone?`<span class="num">${esc(r.telefone)}</span>${isMobile(r.telefone)?`<span class="chip site">WhatsApp provável</span>`:""}`:`<span>sem telefone</span>`}
+          ${r.site?`<a href="${esc(r.site)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">tem site</a>`:`<span class="chip site">sem site</span>`}
+          ${f.nfc?`<span class="chip nfc">bom pra NFC</span>`:""}
+          ${r.dup?`<span class="chip warn">já no funil</span>`:""}
+        </span>
+        <span class="addr">${esc(r.endereco)}${r.tipo?` · ${esc(r.tipo)}`:""}</span>
+      </div>
+      ${r.mapsUrl?`<a class="btn small ghost" href="${esc(r.mapsUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Maps</a>`:"<span></span>"}
+    </label>`;}).join("")
+    : `<div class="empty">${searching?"Procurando empresas…":results.length?"Nenhuma empresa passa nos filtros. Afrouxe os filtros acima.":"Nenhuma empresa encontrada. Tente outro segmento ou cidade."}</div>`;
+}
+async function addSelected(){
+  const V = visibleResults().filter(r=>selected.has(r.placeId) && !r.dup);
+  if (!V.length) return;
+  const now = new Date().toISOString();
+  const novos = V.map(r=>{ const f = fitInfo(r.avaliacoes==null?"":String(r.avaliacoes), !r.site);
+    return {negocio:r.nome, nome:"", telefone:r.telefone, instagram:r.instagram||"", segmento:r.segmento, cidade:r.cidade,
+      avaliacoes:r.avaliacoes==null?"":String(r.avaliacoes), temSite:r.site?"sim":"nao", site:r.site, endereco:r.endereco,
+      nota:r.nota==null?"":String(r.nota), mapsUrl:r.mapsUrl, placeId:r.placeId, projeto:f.projeto, status:"novo",
+      origem:"Busca automática ("+r.fonte+")", notas:[r.nota!=null?`Nota no Google: ${r.nota}`:"", r.endereco, r.site?`Site: ${r.site}`:""].filter(Boolean).join("\n"),
+      proximo:today(), criadoEm:now, atualizadoEm:now}; });
+  if (mode==="db"){ for (const l of novos) await saveLead(l); }
+  else { novos.forEach(l=>{ l.id="l"+Date.now().toString(36)+Math.random().toString(36).slice(2,8); leads.push(l); }); saveLocal(); render(); }
+  selected.clear(); renderResults(); toast(novos.length+(novos.length===1?" lead adicionado":" leads adicionados")+" ao funil");
+}
+function renderKey(){
+  const k = gKey(); $("#gKeyChip").textContent = k ? "configurada" : "não configurada";
+  $("#gKeyChip").style.setProperty("--c", k ? "var(--ok)" : "var(--dead)"); $("#gKeyDel").hidden = !k;
+}
 
 /* ---------- Eventos ---------- */
 $("#fStatus").innerHTML += STAGES.map(s=>`<option value="${s.k}">${s.t}</option>`).join("");
 $("#ideas").innerHTML = SEGS.map(s=>`<button type="button">${s}</button>`).join("");
-$("#ideas").onclick = e => { if(e.target.tagName==="BUTTON"){ $("#pSeg").value=e.target.textContent; updateLinks(); } };
+$("#ideas").onclick = e => { if(e.target.tagName!=="BUTTON") return;
+  const cur = list($("#pSeg").value), s = e.target.textContent, i = cur.map(x=>x.toLowerCase()).indexOf(s);
+  if (i>=0) cur.splice(i,1); else cur.push(s);
+  $("#pSeg").value = cur.join(", "); updateLinks(); };
+$("#srcSel").onclick = e => { const b=e.target.closest("button"); if(!b) return; fonte=b.dataset.s; $$("#srcSel button").forEach(x=>x.setAttribute("aria-pressed",x===b)); try{localStorage.setItem(LKEY+"-fonte",fonte);}catch{} };
+try { const f = localStorage.getItem(LKEY+"-fonte"); if (f) $(`#srcSel button[data-s="${f}"]`)?.click(); } catch {}
+$("#sGo").onclick = startSearch;
+$("#sStop").onclick = () => searching?.abort();
+["#fSemSite","#fTel","#fNovo","#fMaxAval"].forEach(x=>$(x).addEventListener("input",renderResults));
+$("#resList").addEventListener("change", e => { const k=e.target.dataset?.k; if(!k) return; e.target.checked?selected.add(k):selected.delete(k); renderResults(); });
+$("#rAll").onclick = () => { const V=visibleResults().filter(r=>!r.dup); if (V.every(r=>selected.has(r.placeId))) selected.clear(); else V.forEach(r=>selected.add(r.placeId)); renderResults(); };
+$("#rAdd").onclick = addSelected;
+$("#gKeySave").onclick = () => { const k=$("#gKey").value.trim(); if(!k){ toast("Cole a chave primeiro"); return; } try{localStorage.setItem(GKEY,k);}catch{} $("#gKey").value=""; renderKey(); $("#gKeyBox").open=false; toast("Chave do Google salva neste aparelho"); };
+$("#gKeyDel").onclick = () => { try{localStorage.removeItem(GKEY);}catch{} renderKey(); toast("Chave removida"); };
+renderKey();
 ["#pSeg","#pCity"].forEach(x=>$(x).addEventListener("input",updateLinks));
 ["#qAval","#qSemSite"].forEach(x=>$(x).addEventListener("input",renderFit));
 $("#qSave").onclick = quickSave;
