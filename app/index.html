@@ -421,28 +421,12 @@ const ST = Object.fromEntries(STAGES.map(s=>[s.k,s]));
 const SITE = {nenhum:"Sem site", ruim:"Site fraco", bom:"Site bom"};
 const DEMO = "https://claude.ai/artifact/";
 /* ---------- Dados salvos neste aparelho ---------- */
-const DKEY = "radar-novo-v1";
-const OLDKEY = "radar-crm-v2";
-const OLD_STAGE = {novo:"novo",contatado:"contatado",qualificado:"interessado",proposta:"proposta",negociacao:"proposta",ganho:"fechado",perdido:"perdido"};
-function fromOldApp(){
-  let raw = null; try { raw = JSON.parse(localStorage.getItem(OLDKEY)||"null"); } catch {}
-  if (!raw || !Array.isArray(raw.leads)) return [];
-  return raw.leads.filter(o=>!(o.tags||[]).includes("exemplo")).map(o=>{
-    const tarefa = (o.tarefas||[]).filter(t=>!t.feita).sort((x,y)=>(x.vence||"9").localeCompare(y.vence||"9"))[0];
-    const stage = OLD_STAGE[o.etapa] || "novo";
-    return {id:o.id||("m"+Math.random().toString(36).slice(2,9)), placeId:o.placeId||"", negocio:o.empresa||o.contato||"Sem nome", contato:o.empresa?(o.contato||""):"",
-      tel:o.telefone||"", seg:o.segmento||"—", bairro:o.cidade||"—", site:o.temSite==="nao"?"nenhum":o.temSite==="sim"?"ruim":"nenhum", siteUrl:o.site||"",
-      stage, aval:o.avaliacoes??0, nota:o.nota??0, prox: stage==="fechado"||stage==="perdido" ? "" : (tarefa?.vence||""), pacote:"", valor:+o.valor||0,
-      temp: stage==="fechado"?100: stage==="perdido"?10: 50, demo:"", notas:[o.notas, o.endereco].filter(Boolean).join(" · "),
-      hist:(o.atividades||[]).filter(x=>x.em).map(x=>[String(x.em).slice(0,10), x.texto ? x.texto.slice(0,120) : ({criado:"Lead criado",whatsapp:"Mensagem pelo WhatsApp",email:"E-mail enviado",ligacao:"Ligação",reuniao:"Reunião",nota:"Anotação",etapa:"Mudou de etapa"}[x.tipo]||x.tipo)]),
-      criado:String(o.criadoEm||"").slice(0,10)||TODAY, fechadoEm: stage==="fechado" ? String(o.ganhoEm||o.atualizadoEm||"").slice(0,10) : ""};
-  });
-}
-let leads = [], goalWeek = 50, importedCount = 0;
+const DKEY = "radar-app-v1";
+let leads = [], goalWeek = 50;
 (()=>{
   let raw = null; try { raw = JSON.parse(localStorage.getItem(DKEY)||"null"); } catch {}
   if (raw && Array.isArray(raw.leads)){ leads = raw.leads; goalWeek = raw.goalWeek || 50; }
-  else { leads = fromOldApp(); importedCount = leads.length; }
+  else { leads = []; }
 })();
 function save(){ try { localStorage.setItem(DKEY, JSON.stringify({v:1, leads, goalWeek, salvoEm:new Date().toISOString()})); } catch {} }
 const PAC = {
@@ -989,7 +973,7 @@ $("#bkFile").onchange = async e => {
 autoLink(leads);
 keyState();
 show(location.hash.slice(1));
-if (importedCount) setTimeout(()=>toast(`${importedCount} leads trazidos do Radar antigo`), 400);
+
 })();
 </script>
 </body>
