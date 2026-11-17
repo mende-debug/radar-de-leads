@@ -4,6 +4,8 @@ CRM de captação de leads, feito para vender **placas NFC** (avaliação do Goo
 
 **App:** https://mende-debug.github.io/radar-de-leads/
 
+**Nova versão (só sites, visual Noir):** https://mende-debug.github.io/radar-de-leads/novo/ — Hoje, Leads, Prospectar (Google Maps ou OpenStreetMap), Sites demo ligados automaticamente aos leads, pacotes com preço de lançamento e modelos de mensagem editáveis. Os dados ficam salvos no aparelho; no primeiro acesso, os leads do app antigo são importados. Use Exportar/Importar backup para levar os dados de um aparelho para outro.
+
 ## O que tem
 
 | Área | Recursos |

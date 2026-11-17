@@ -1,0 +1,996 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A0A0B">
+<link rel="icon" href="../icons/icon.svg">
+<title>Radar de Leads</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: estilo 1 · Noir Violeta — menu lateral fixo, painel do dia, ficha do lead em gaveta. Escuro de propósito. Foco só em venda de sites. */
+:root{
+  color-scheme:dark;
+  --bg:#0A0A0B; --surface:#141416; --raise:#1C1C20; --line:#26262B;
+  --fg:#F4F4F5; --muted:#A1A1AA; --dim:#71717A;
+  --accent:#8B5CF6; --accent-hi:#C4B5FD; --accent-soft:#1C1630; --on-accent:#0A0A0B;
+  --late:#FDA4AF; --ok:#86EFAC;
+  --cold:#52525B; --warm:#7C4DEB; --hot:#C4B5FD;
+  --f-head:"Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:14px; --r-s:10px;
+}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+html,body{background:var(--bg)}
+body{color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent-hi);outline-offset:2px}
+a{color:var(--accent-hi)}
+h1,h2,h3{font-family:var(--f-head);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.num{font-variant-numeric:tabular-nums}
+
+.demobar{background:var(--accent-soft);border-bottom:1px solid var(--line);padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));font-size:13px;color:var(--muted)}
+.demobar b{color:var(--fg)}
+
+/* Estrutura */
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;height:calc(100vh - env(safe-area-inset-top,0px));padding:24px 16px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:28px}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px}
+.brand svg{flex:none}
+.brand b{display:block;font-family:var(--f-head);font-weight:700;font-size:18px;line-height:1.1}
+.brand small{display:block;font-size:12px;color:var(--muted)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-s);border:0;background:none;color:var(--muted);font-weight:500;font-size:14px;cursor:pointer;text-align:left;min-height:44px}
+.nav button svg{width:18px;height:18px;flex:none}
+.nav button[aria-current="true"]{background:var(--accent-soft);color:var(--fg)}
+.nav button[aria-current="true"] svg{color:var(--accent-hi)}
+.backup{display:flex;flex-direction:column;gap:2px;margin-top:-18px}
+.backup .btn{justify-content:flex-start}
+.goal{margin-top:auto;padding:14px;border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;gap:4px}
+.goal small{font-size:12px;color:var(--muted)}
+.goal b{font-family:var(--f-head);font-size:20px;font-weight:600}
+.goal b span{color:var(--muted);font-size:14px;font-weight:500}
+.track{height:6px;background:var(--line);border-radius:4px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.sign{padding:0 8px;font-size:12px;color:var(--muted)}
+.sign b{color:var(--fg);font-weight:600}
+.sign em{font-style:normal;color:var(--accent)}
+main{min-width:0;padding-block:28px 120px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.inner{max-width:1080px;margin:0 auto}
+
+/* Peças comuns */
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.head h1{font-size:32px;font-weight:600;letter-spacing:-.02em}
+.head p{margin:0 0 4px;color:var(--muted);font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:var(--r-s);border:1px solid var(--line);background:var(--surface);color:var(--fg);font-weight:600;font-size:14px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:var(--dim)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.btn.small{min-height:34px;padding:0 12px;font-size:13px}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;min-width:0}
+.panel h2{font-size:17px;font-weight:600}
+.tag{display:inline-flex;align-items:center;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--raise);color:var(--fg);white-space:nowrap}
+.tag.demo{background:var(--accent-soft);color:var(--accent-hi)}
+.stage{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+.stage::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c,var(--dim))}
+.late{color:var(--late)}
+.today{color:var(--accent-hi)}
+.empty{color:var(--muted);font-size:14px;padding:18px;border:1px dashed var(--line);border-radius:var(--r);text-align:center}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 12px;width:100%;min-width:0;color:var(--fg);min-height:44px}
+textarea{resize:vertical;min-height:84px;line-height:1.5}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--fg);min-height:44px}
+.check input{width:18px;height:18px;min-height:0}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line);background:var(--bg);color:var(--muted);border-radius:999px;padding:0 12px;min-height:38px;font-size:13px;font-weight:600;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+
+/* Hoje */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.kpi span{font-size:13px;color:var(--muted)}
+.kpi b{font-family:var(--f-head);font-size:30px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.split{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:14px}
+.rlist{margin-top:6px}
+.rrow{display:grid;grid-template-columns:minmax(0,1fr) auto 120px auto;gap:12px;align-items:center;padding:12px 4px;border-top:1px solid var(--line);cursor:pointer}
+.rrow:first-child{border-top:0}
+.rrow:hover .nm{color:var(--accent-hi)}
+.nm{font-weight:600;overflow-wrap:anywhere}
+.sub{font-size:12px;color:var(--muted)}
+.due{font-size:13px}
+.fbar{display:grid;grid-template-columns:92px minmax(0,1fr) 28px;gap:12px;align-items:center;font-size:13px;padding:6px 0;border:0;background:none;color:var(--fg);width:100%;text-align:left;cursor:pointer;border-radius:6px}
+.fbar:hover span:first-child{color:var(--accent-hi)}
+.fbar .bar{height:10px;background:var(--raise);border-radius:6px;overflow:hidden}
+.fbar .bar i{display:block;height:100%;border-radius:6px;background:var(--c)}
+.fbar .n{text-align:right;font-variant-numeric:tabular-nums}
+.conv{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.conv b{color:var(--fg)}
+
+/* Leads */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.toolbar input{flex:1 1 220px;width:auto}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:0 12px;min-height:36px;font-size:13px;font-weight:600;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.ltable{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.lrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.2fr) 130px 120px 70px;gap:12px;align-items:center;padding:12px 18px;border-top:1px solid var(--line);cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;color:var(--fg)}
+.lrow:first-child{border-top:0}
+.lrow:hover{background:var(--raise)}
+.lhead{cursor:default;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;padding-block:10px}
+.lhead:hover{background:none}
+.temp{display:flex;align-items:center;gap:6px;font-size:13px;font-variant-numeric:tabular-nums}
+.temp i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+
+/* Prospectar */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+.ideas{display:flex;flex-wrap:wrap;gap:6px}
+.res-list{list-style:none;margin:0;padding:0}
+.res{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line)}
+.res:first-child{border-top:0}
+.res.dup{opacity:.55}
+.res-l{display:flex;gap:12px;align-items:flex-start;flex:1;min-width:0;cursor:pointer}
+.res-l input{width:20px;height:20px;min-height:0;margin-top:2px;flex:none;accent-color:var(--accent)}
+.res-b{display:flex;flex-direction:column;gap:4px;min-width:0}
+.res-m{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:13px;color:var(--muted)}
+.res-m b{color:var(--fg)}
+.stars{color:#FCD34D;font-weight:600}
+.tag.ok{background:#14301F;color:var(--ok)}
+.tag.warn{background:#3A1E26;color:var(--late)}
+.ideas button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--fg)}
+.keybox{border:1px dashed var(--line);border-radius:var(--r-s);padding:10px 14px;font-size:14px}
+.keybox summary{cursor:pointer;font-weight:600;display:flex;gap:8px;align-items:center}
+.pacs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.pac{border:1px solid var(--line);border-radius:var(--r-s);padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.pac h3{font-size:15px;font-weight:600}
+.pac .price{font-family:var(--f-head);font-size:28px;font-weight:600;line-height:1.1}
+.pac .price small{font-size:13px;color:var(--muted);font-weight:500;font-family:var(--f-body)}
+.pac .left{font-size:12px;color:var(--muted)}
+.slots{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:3px;margin-top:4px}
+.slots i{height:8px;border-radius:2px;background:var(--line)}
+.slots i.on{background:var(--accent)}
+.msg-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:14px}
+.tpl-list{display:flex;flex-direction:column;gap:12px}
+.tpl-g{display:flex;flex-direction:column;gap:4px}
+.tpl-gh{font-size:12px;font-weight:700;color:var(--muted);padding:0 2px}
+.tpl{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;border:1px solid var(--line);border-radius:var(--r-s);cursor:pointer;background:var(--bg)}
+.tpl span{flex:1;min-width:0;display:flex;flex-direction:column}
+.tpl b{font-weight:600;font-size:14px}
+.tpl small{font-size:12px;color:var(--muted)}
+.tpl:hover{border-color:var(--dim)}
+.tpl.on{border-color:var(--accent);background:var(--accent-soft)}
+.icon-btn{width:36px;height:36px;border-radius:8px;border:0;background:none;color:var(--muted);display:grid;place-items:center;cursor:pointer;flex:none}
+.icon-btn:hover{background:var(--raise);color:var(--fg)}
+.msg-text{min-height:240px;line-height:1.55;font-size:14px}
+.overlay.center{justify-content:center;align-items:center;padding:16px}
+.modal{width:min(620px,100%);max-height:92%;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;display:flex;flex-direction:column;gap:16px}
+.vars{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.vars button{border:1px solid var(--line);background:var(--bg);color:var(--accent-hi);border-radius:999px;padding:0 10px;min-height:30px;font-size:12px;cursor:pointer;font-family:ui-monospace,Menlo,monospace}
+@media (max-width:860px){.msg-grid{grid-template-columns:1fr}}
+.dstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:16px}
+.dcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.dcard:hover{border-color:var(--dim)}
+.dshot{position:relative;aspect-ratio:16/9;max-width:100%;background:var(--c);color:#fff;display:flex;flex-direction:column;overflow:hidden}
+.dshot .chrome{display:flex;align-items:center;gap:5px;padding:8px 10px;background:rgba(0,0,0,.28)}
+.dshot .chrome i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55)}
+.dshot .chrome span{margin-left:8px;flex:1;min-width:0;height:16px;border-radius:5px;background:rgba(255,255,255,.16);font-size:10px;line-height:16px;padding:0 8px;color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,Menlo,monospace}
+.dshot .hero{flex:1;padding:16px 18px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.45) 100%)}
+.dshot .mono{position:absolute;right:-8px;top:22px;font-family:var(--f-head);font-weight:700;font-size:120px;line-height:1;opacity:.14;letter-spacing:-.04em}
+.dshot .hero b{font-family:var(--f-head);font-size:22px;font-weight:700;line-height:1.1;letter-spacing:-.01em;text-wrap:balance}
+.dshot .hero small{font-size:13px;opacity:.9}
+.dshot .pill{position:absolute;left:12px;top:40px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(0,0,0,.45);color:#fff}
+.dbody{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+.dlinks{display:flex;flex-direction:column;gap:6px}
+.dlead{display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--line);cursor:pointer;color:var(--fg);text-align:left;width:100%}
+.dlead span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlead small{color:var(--muted);white-space:nowrap}
+.dlead:hover{border-color:var(--accent)}
+.dacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.dacts .btn{flex:1 1 auto}
+@media (max-width:860px){.dstats{grid-template-columns:1fr}}
+.step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px}
+.step .k{width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-weight:700;font-size:13px}
+.step h3{font-size:17px;font-weight:600}
+.ideas button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:0 11px;min-height:32px;font-size:13px;cursor:pointer;color:var(--fg)}
+.verdict{border-radius:var(--r-s);padding:14px;font-size:14px;border:1px solid var(--line);display:flex;gap:14px;align-items:center}
+.verdict b{display:block;font-size:15px;margin-bottom:2px}
+.verdict span{color:var(--muted);font-size:13px}
+.verdict .score{font-family:var(--f-head);font-size:34px;font-weight:600;line-height:1;min-width:56px;text-align:center}
+.verdict.on{border-color:var(--accent);background:var(--accent-soft)}
+
+/* Mensagens */
+.msgbox-old{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s);padding:14px;white-space:pre-wrap;font-size:14px;min-height:190px;line-height:1.55;overflow-wrap:anywhere}
+.stack{display:flex;flex-direction:column;gap:14px}
+
+/* Ficha do lead */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(4,4,8,.6);display:flex;justify-content:flex-end}
+.drawer{width:min(460px,100%);height:100%;background:var(--surface);border-left:1px solid var(--line);overflow:auto;padding:22px max(22px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) 22px;padding-top:calc(22px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:18px}
+.drawer header{display:flex;align-items:flex-start;gap:12px}
+.drawer header h2{font-size:26px}
+.democard{border:1px solid var(--line);border-radius:var(--r-s);padding:14px;display:flex;flex-direction:column;gap:10px}
+.hist{display:flex;flex-direction:column}
+.hist div{display:grid;grid-template-columns:64px 1fr;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.hist div span:first-child{color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px;max-width:calc(100% - 32px)}
+
+/* Celular */
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));border-right:0;border-bottom:1px solid var(--line);gap:12px}
+  .brand{padding:0}
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;flex-direction:row;justify-content:space-around;gap:0;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+  .nav button{flex:1;flex-direction:column;gap:2px;font-size:11px;padding:6px 4px;justify-content:center;min-height:52px}
+  .goal{margin:0 0 0 auto;flex-direction:row;align-items:center;gap:8px;padding:6px 10px}
+  .goal small{display:none}
+  .goal b{font-size:14px}
+  .goal .track{width:56px}
+  .sign{display:none}
+  .backup{display:none}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 110px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .split{grid-template-columns:1fr}
+  .rrow{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}
+  .rrow .c-site{display:none}
+  .lrow{grid-template-columns:minmax(0,1fr) auto;row-gap:4px;padding-inline:14px}
+  .lrow .c-seg,.lrow .c-site,.lrow .c-stage{display:none}
+  .lhead{display:none}
+  .head h1{font-size:26px}
+  .overlay{align-items:flex-end}
+  .drawer{height:auto;max-height:92%;width:100%;border-left:0;border-radius:18px 18px 0 0;padding-top:22px}
+}
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="13" fill="none" stroke="var(--accent)" stroke-width="2" opacity=".45"/><circle cx="15" cy="15" r="7.5" fill="none" stroke="var(--accent-hi)" stroke-width="2"/><circle cx="15" cy="15" r="2.6" fill="var(--fg)"/></svg>
+      <div><b>Radar</b><small>Leads de sites</small></div>
+    </div>
+    <nav class="nav" aria-label="Seções">
+      <button type="button" data-tab="hoje"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>Hoje</button>
+      <button type="button" data-tab="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.8 3 2.6 3.5 5.2"/></svg>Leads</button>
+      <button type="button" data-tab="prospectar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Prospectar</button>
+      <button type="button" data-tab="demos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><circle cx="6.5" cy="6.5" r=".6" fill="currentColor"/><circle cx="9" cy="6.5" r=".6" fill="currentColor"/></svg>Sites demo</button>
+      <button type="button" data-tab="mensagens"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>Mensagens</button>
+    </nav>
+    <div class="goal" title="Abordagens feitas nesta semana">
+      <small>Meta da semana</small>
+      <b class="num" id="goalTxt">0 <span>/ 50</span></b>
+      <div class="track"><i id="goalBar" style="width:0%"></i></div>
+    </div>
+    <div class="backup">
+      <button type="button" class="btn ghost small" id="bkExport">Exportar backup</button>
+      <label class="btn ghost small" for="bkFile">Importar backup</label>
+      <input type="file" id="bkFile" accept="application/json,.json" hidden>
+    </div>
+    <div class="sign">um produto <b>novu</b><em>.</em>studio</div>
+  </aside>
+
+  <main>
+    <div class="inner">
+
+      <!-- HOJE -->
+      <section id="v-hoje">
+        <div class="head">
+          <div><p id="dateTxt"></p><h1 id="hello">Olá, Isaac</h1></div>
+          <div class="row">
+            <button type="button" class="btn" data-go="prospectar">Buscar no Maps</button>
+            <button type="button" class="btn primary" data-new>+ Novo lead</button>
+          </div>
+        </div>
+        <div class="kpis" id="kpis"></div>
+        <div class="split">
+          <div class="panel">
+            <div class="row" style="justify-content:space-between"><h2>Retornos de hoje</h2><button type="button" class="btn ghost small" data-go="leads">Ver todos</button></div>
+            <div class="rlist" id="dueList"></div>
+          </div>
+          <div class="panel">
+            <h2 style="margin-bottom:8px">Funil</h2>
+            <div id="funnel"></div>
+            <div class="conv"><span>Conversão dos contatados</span><b class="num" id="convTxt"></b></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <div class="row" style="justify-content:space-between;margin-bottom:12px"><h2>Pacotes e preço de lançamento</h2><span class="sub">Preço válido para os 10 primeiros clientes de cada pacote</span></div>
+          <div class="pacs" id="pacs"></div>
+        </div>
+      </section>
+
+      <!-- SITES DEMO -->
+      <section id="v-demos" hidden>
+        <div class="head"><div><p>Todos os sites demo que você já tem, ligados automaticamente aos leads</p><h1>Sites demo</h1></div></div>
+        <div class="dstats" id="dStats"></div>
+        <div class="chips" id="dChips" role="group" aria-label="Filtrar por segmento" style="margin:16px 0"></div>
+        <div class="dgrid" id="dGrid"></div>
+      </section>
+
+      <!-- LEADS -->
+      <section id="v-leads" hidden>
+        <div class="head"><div><p>Toque num lead para abrir a ficha</p><h1>Leads</h1></div><button type="button" class="btn primary" data-new>+ Novo lead</button></div>
+        <div class="toolbar">
+          <input id="q" type="search" placeholder="Buscar por negócio, bairro, segmento…" aria-label="Buscar leads">
+          <div class="chips" id="stageChips" role="group" aria-label="Filtrar por etapa"></div>
+        </div>
+        <div class="ltable" id="ltable"></div>
+      </section>
+
+      <!-- PROSPECTAR -->
+      <section id="v-prospectar" hidden>
+        <div class="head"><div><p>Diga o que procura e onde. O Radar busca as empresas, mostra quem não tem site e manda as escolhidas para o funil.</p><h1>Prospectar</h1></div></div>
+        <div class="panel stack">
+          <div class="fgrid">
+            <label class="f">Segmentos (separe por vírgula)<input id="psSeg" placeholder="clínica odontológica, advocacia"></label>
+            <label class="f">Cidades ou bairros (separe por vírgula)<input id="psCity" placeholder="ex.: Campinas, Valinhos"></label>
+            <label class="f">País<select id="psCountry"><option value="BR" selected>Brasil</option><option value="PT">Portugal</option><option value="US">Estados Unidos</option><option value="AR">Argentina</option><option value="MX">México</option></select></label>
+          </div>
+          <div class="ideas" id="psIdeas"></div>
+          <div class="row" style="gap:8px 22px">
+            <div class="seg" id="psSrc" role="group" aria-label="Fonte">
+              <button type="button" data-s="google" aria-pressed="false">Google Maps</button>
+              <button type="button" data-s="osm" aria-pressed="false">OpenStreetMap <small style="font-weight:500;opacity:.8">grátis</small></button>
+            </div>
+            <label class="check"><input type="checkbox" id="psSemSite"> Só quem não tem site</label>
+            <label class="check"><input type="checkbox" id="psTel" checked> Só com telefone</label>
+            <label class="check"><input type="checkbox" id="psNovo" checked> Esconder quem já está no funil</label>
+            <label class="check">A partir de <input id="psMin" type="number" min="0" inputmode="numeric" placeholder="0" style="width:72px;min-height:36px;padding:6px 8px"> avaliações</label>
+          </div>
+          <div class="row"><button type="button" class="btn primary" id="psGo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 12 18 6"/></svg>Buscar leads</button><button type="button" class="btn" id="psStop" hidden>Parar</button><span id="psProg" class="sub" role="status" style="font-size:13px"></span></div>
+          <details class="keybox" id="psKey">
+            <summary>Chave do Google <span class="tag" id="psKeyB">não configurada</span></summary>
+            <div class="stack" style="gap:10px;margin-top:10px">
+              <p class="sub" style="font-size:13px;margin:0">A busca pelo Google Maps traz avaliações, nota, telefone e site. Usa a Places API do Google, que tem cota gratuita mensal. A chave fica salva só neste aparelho.</p>
+              <ol class="sub" style="font-size:13px;margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+                <li>Crie um projeto no <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud</a> e ative o faturamento (a cota gratuita cobre o uso normal).</li>
+                <li>Ative a <a href="https://console.cloud.google.com/apis/library/places.googleapis.com" target="_blank" rel="noopener">Places API (New)</a>.</li>
+                <li>Em <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Credenciais</a>, clique em Criar credenciais → Chave de API.</li>
+                <li>Proteja a chave: em Restrições do aplicativo escolha Sites e adicione <code>mende-debug.github.io/*</code>. Em Restrições de API, marque só a Places API (New). Cole a chave abaixo.</li>
+              </ol>
+              <div class="row"><input id="psGkey" type="password" autocomplete="off" placeholder="AIza…" aria-label="Chave do Google" style="flex:1 1 200px;width:auto"><button type="button" class="btn" id="psGsave">Salvar</button><button type="button" class="btn ghost" id="psGdel" hidden>Remover</button></div>
+            </div>
+          </details>
+        </div>
+        <div class="panel" id="psRes" style="margin-top:14px" hidden>
+          <div class="row" style="justify-content:space-between;margin-bottom:8px">
+            <div><h2 id="psTitle"></h2><span class="sub" id="psSub"></span></div>
+            <div class="row"><button type="button" class="btn small" id="psAll"></button><button type="button" class="btn small primary" id="psAdd" disabled></button></div>
+          </div>
+          <ul class="res-list" id="psList"></ul>
+        </div>
+      </section>
+
+      <!-- MENSAGENS -->
+      <section id="v-mensagens" hidden>
+        <div class="head"><div><p>Modelos prontos com o nome do lead. Edite, salve e crie os seus.</p><h1>Mensagens</h1></div>
+          <button type="button" class="btn" id="mNew"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Novo modelo</button></div>
+        <div class="msg-grid">
+          <div class="panel stack">
+            <label class="f">Para quem<select id="mLead"></select></label>
+            <div class="stack" style="gap:6px"><span class="eyebrow">Modelo</span><div class="tpl-list" id="mTpls" role="listbox" aria-label="Modelos de mensagem"></div></div>
+          </div>
+          <div class="panel stack">
+            <div class="row" style="justify-content:space-between"><h2>Mensagem</h2><span class="sub" id="mTo"></span></div>
+            <textarea id="mText" rows="11" class="msg-text" aria-label="Texto da mensagem"></textarea>
+            <div class="row">
+              <a class="btn primary" id="mWa" target="_blank" rel="noopener" href="https://wa.me/">Abrir no WhatsApp</a>
+              <button type="button" class="btn" id="mCopy">Copiar</button>
+              <button type="button" class="btn" id="mSaveTpl">Salvar como modelo</button>
+              <button type="button" class="btn" id="mMark">Registrar envio</button>
+            </div>
+            <p class="sub" style="margin:0;font-size:13px" id="mHint">Ao registrar, o lead sai de “Novo” e ganha um retorno em 2 dias.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div id="sheet"></div>
+
+<script>
+(() => {
+/* ---------- Datas ---------- */
+const iso = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const rel = n => { const d=new Date(); d.setDate(d.getDate()+n); return iso(d); };
+const TODAY = iso(new Date());
+const fmt = s => s ? new Date(s+"T12:00:00").toLocaleDateString("pt-BR",{day:"numeric",month:"short"}).replace(".","") : "";
+const daysBetween = (a,b) => Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);
+
+/* ---------- Dados de exemplo ---------- */
+const STAGES = [
+  {k:"novo",t:"Novo",c:"var(--cold)"},
+  {k:"contatado",t:"Contatado",c:"#5B3FB0"},
+  {k:"interessado",t:"Interessado",c:"#7C4DEB"},
+  {k:"proposta",t:"Proposta",c:"var(--accent-hi)"},
+  {k:"fechado",t:"Fechado",c:"var(--ok)"},
+  {k:"perdido",t:"Perdido",c:"#3F3F46"}
+];
+const ST = Object.fromEntries(STAGES.map(s=>[s.k,s]));
+const SITE = {nenhum:"Sem site", ruim:"Site fraco", bom:"Site bom"};
+const DEMO = "https://claude.ai/artifact/";
+/* ---------- Dados salvos neste aparelho ---------- */
+const DKEY = "radar-novo-v1";
+const OLDKEY = "radar-crm-v2";
+const OLD_STAGE = {novo:"novo",contatado:"contatado",qualificado:"interessado",proposta:"proposta",negociacao:"proposta",ganho:"fechado",perdido:"perdido"};
+function fromOldApp(){
+  let raw = null; try { raw = JSON.parse(localStorage.getItem(OLDKEY)||"null"); } catch {}
+  if (!raw || !Array.isArray(raw.leads)) return [];
+  return raw.leads.filter(o=>!(o.tags||[]).includes("exemplo")).map(o=>{
+    const tarefa = (o.tarefas||[]).filter(t=>!t.feita).sort((x,y)=>(x.vence||"9").localeCompare(y.vence||"9"))[0];
+    const stage = OLD_STAGE[o.etapa] || "novo";
+    return {id:o.id||("m"+Math.random().toString(36).slice(2,9)), placeId:o.placeId||"", negocio:o.empresa||o.contato||"Sem nome", contato:o.empresa?(o.contato||""):"",
+      tel:o.telefone||"", seg:o.segmento||"—", bairro:o.cidade||"—", site:o.temSite==="nao"?"nenhum":o.temSite==="sim"?"ruim":"nenhum", siteUrl:o.site||"",
+      stage, aval:o.avaliacoes??0, nota:o.nota??0, prox: stage==="fechado"||stage==="perdido" ? "" : (tarefa?.vence||""), pacote:"", valor:+o.valor||0,
+      temp: stage==="fechado"?100: stage==="perdido"?10: 50, demo:"", notas:[o.notas, o.endereco].filter(Boolean).join(" · "),
+      hist:(o.atividades||[]).filter(x=>x.em).map(x=>[String(x.em).slice(0,10), x.texto ? x.texto.slice(0,120) : ({criado:"Lead criado",whatsapp:"Mensagem pelo WhatsApp",email:"E-mail enviado",ligacao:"Ligação",reuniao:"Reunião",nota:"Anotação",etapa:"Mudou de etapa"}[x.tipo]||x.tipo)]),
+      criado:String(o.criadoEm||"").slice(0,10)||TODAY, fechadoEm: stage==="fechado" ? String(o.ganhoEm||o.atualizadoEm||"").slice(0,10) : ""};
+  });
+}
+let leads = [], goalWeek = 50, importedCount = 0;
+(()=>{
+  let raw = null; try { raw = JSON.parse(localStorage.getItem(DKEY)||"null"); } catch {}
+  if (raw && Array.isArray(raw.leads)){ leads = raw.leads; goalWeek = raw.goalWeek || 50; }
+  else { leads = fromOldApp(); importedCount = leads.length; }
+})();
+function save(){ try { localStorage.setItem(DKEY, JSON.stringify({v:1, leads, goalWeek, salvoEm:new Date().toISOString()})); } catch {} }
+const PAC = {
+  landing:{t:"Landing page", preco:450, vagas:10, d:"Uma página só, focada em levar o cliente para o WhatsApp"},
+  site:{t:"Site", preco:950, vagas:10, d:"Site com várias páginas: serviços, sobre, contato e mapa"},
+  elaborado:{t:"E-commerce ou projeto elaborado", preco:null, vagas:null, d:"Valor a definir depois da pesquisa de mercado"}
+};
+const sold = k => leads.filter(l=>l.stage==="fechado" && l.pacote===k).length;
+const priceFor = k => !k ? 0 : PAC[k].preco ?? 0;
+/* Sites demo que já existem (só links, nada criado do zero) */
+const DEMOS = [
+  {id:"dn", nome:"Dom Navalha Barbearia", sub:"Tradição no corte", seg:"Barbearia", rx:/barb/, cor:"#3B2A1E", url:DEMO+"Gcaw8bGjFaiGTnFFARG4G5"},
+  {id:"ao", nome:"Aurora Odontologia", sub:"Seu sorriso em boas mãos", seg:"Clínica odontológica", rx:/odont|dent/, cor:"#0E7C86", url:DEMO+"Lx2qkcU1sv6CV5DYoME1Ca"},
+  {id:"od", nome:"Site para Clínicas Odontológicas", sub:"Modelo para qualquer clínica", seg:"Clínica odontológica", rx:/odont|dent/, cor:"#2563A8", url:DEMO+"2DPVomp7CniqF1eAHirJ9Q", modelo:true},
+  {id:"cb", nome:"Casa Brasa", sub:"Cozinha de fogo", seg:"Restaurante", rx:/restaur|cozinha|bistro|grill/, cor:"#9A3412", url:DEMO+"Mzf3pg5A3FRR2aXG5bWKsg"},
+  {id:"fa", nome:"Forja Academia", sub:"Forje sua melhor versão", seg:"Academia", rx:/academ|gym|fitness|crossfit/, cor:"#1F2937", url:DEMO+"XyCnnhjLpgKdwSrBgM9pDU"},
+  {id:"gp", nome:"Grão & Prosa", sub:"Cafés especiais", seg:"Cafeteria", rx:/cafe/, cor:"#6B4226", url:DEMO+"GMYc7LKtkgEPAvWovUCsSL"},
+  {id:"at", nome:"Almeida & Torres Advogados", sub:"Advocacia", seg:"Advocacia", rx:/advoc|advog|juridic/, cor:"#1E3A5F", url:DEMO+"9yiGJD53PbBz1tkGqRdgWe"},
+  {id:"rt", nome:"Dr. Rafael Teixeira", sub:"Advocacia previdenciária", seg:"Advocacia", rx:/advoc|advog|juridic|previd/, cor:"#334155", url:DEMO+"MTFcVckzn29xq1LMnL5gTi"},
+  {id:"ov", nome:"Ótica Rede Visual", sub:"Óculos e lentes", seg:"Ótica", rx:/otica|oculos/, cor:"#6D28D9", url:DEMO+"ArHfr2hLshPvnRYTdbU59U"}
+];
+const nk = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const demoById = id => DEMOS.find(d=>d.id===id);
+/* Liga cada lead ao demo certo: primeiro o site feito para ele (mesmo nome); se não houver, um site do mesmo segmento como exemplo. */
+function autoLink(list){
+  let n = 0;
+  for (const l of list){
+    if (l.demo || l.stage==="perdido") continue;
+    const own = DEMOS.find(d=>!d.modelo && (nk(d.nome)===nk(l.negocio) || nk(l.negocio).includes(nk(d.nome)) || nk(d.nome).includes(nk(l.negocio))) && nk(l.negocio).length>4);
+    const seg = nk(l.seg);
+    const ex = own ? null : (DEMOS.find(d=>d.modelo && d.rx.test(seg)) || DEMOS.find(d=>d.rx.test(seg)));
+    const d = own || ex; if (!d) continue;
+    l.demo = d.url; l.demoId = d.id; l.demoTipo = own ? "proprio" : "exemplo"; n++;
+  }
+  return n;
+}
+const pacLabel = l => l.pacote ? PAC[l.pacote].t : "Sem pacote";
+
+/* ---------- Utilidades ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = v => (+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+const active = l => !["fechado","perdido"].includes(l.stage);
+const isDue = l => active(l) && l.prox && l.prox <= TODAY;
+const byId = id => leads.find(l=>l.id===id);
+const tempColor = t => t>=70 ? "var(--hot)" : t>=45 ? "var(--warm)" : "var(--cold)";
+const tempWord = t => t>=70 ? "quente" : t>=45 ? "morno" : "frio";
+function dueText(l){
+  if (!l.prox) return {t:"sem data", c:""};
+  if (l.prox < TODAY){ const d=daysBetween(l.prox,TODAY); return {t:`atrasado ${d} dia${d>1?"s":""}`, c:"late"}; }
+  if (l.prox === TODAY) return {t:"retornar hoje", c:"today"};
+  return {t:"retornar "+fmt(l.prox), c:""};
+}
+function toast(m){ const t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); t.textContent=m; document.body.appendChild(t); setTimeout(()=>t.remove(),2300); }
+const siteTag = l => l.demo ? `<span class="tag demo">${l.demoTipo==="exemplo"?"Exemplo pronto":"Demo pronto"}</span>` : `<span class="tag">${SITE[l.site]}</span>`;
+
+/* ---------- Hoje ---------- */
+function renderHoje(){
+  $("#dateTxt").textContent = new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
+  const h = new Date().getHours(); $("#hello").textContent = (h<12?"Bom dia":h<18?"Boa tarde":"Boa noite")+", Isaac";
+  const act = leads.filter(active), due = leads.filter(isDue).sort((a,b)=>a.prox.localeCompare(b.prox));
+  const won = leads.filter(l=>l.stage==="fechado" && (l.fechadoEm||"").slice(0,7)===TODAY.slice(0,7));
+  $("#kpis").innerHTML = [
+    ["Em andamento", act.length],
+    ["Retornos hoje", due.length, "var(--accent-hi)"],
+    ["Sites fechados no mês", won.length],
+    ["Faturado no mês", money(won.reduce((a,l)=>a+(+l.valor||0),0))]
+  ].map(([t,v,c])=>`<div class="kpi"><span>${t}</span><b ${c?`style="color:${c}"`:""}>${v}</b></div>`).join("");
+  $("#dueList").innerHTML = due.length ? due.map(l=>{ const d=dueText(l);
+    return `<div class="rrow" data-open="${l.id}" tabindex="0" role="button" aria-label="Abrir ${esc(l.negocio)}">
+      <div><div class="nm">${esc(l.negocio)}</div><div class="sub">${esc(l.seg)} · ${ST[l.stage].t}</div></div>
+      <span class="c-site">${siteTag(l)}</span>
+      <span class="due ${d.c}">${d.t}</span>
+      <button type="button" class="btn small" data-msg="${l.id}">WhatsApp</button>
+    </div>`;}).join("") : `<div class="empty">Nenhum retorno para hoje. Bom momento para prospectar.</div>`;
+  const counts = STAGES.slice(0,5).map(s=>leads.filter(l=>l.stage===s.k).length);
+  const max = Math.max(1,...counts);
+  $("#funnel").innerHTML = STAGES.slice(0,5).map((s,i)=>`<button type="button" class="fbar" data-stagefilter="${s.k}"><span>${s.t}</span><span class="bar"><i style="--c:${s.c};width:${counts[i]/max*100}%"></i></span><span class="n">${counts[i]}</span></button>`).join("");
+  $("#pacs").innerHTML = Object.entries(PAC).map(([k,p])=>{
+    const n = sold(k), open = leads.filter(l=>active(l) && l.pacote===k).length;
+    if (p.preco==null) return `<div class="pac"><h3>${p.t}</h3><div class="price">A definir</div><div class="sub">${p.d}</div><div class="left">${open} em negociação</div></div>`;
+    const left = Math.max(0,p.vagas-n);
+    return `<div class="pac"><h3>${p.t}</h3><div class="price num">${money(p.preco)} <small>lançamento</small></div><div class="sub">${p.d}</div>
+      <div class="slots" aria-label="${n} de ${p.vagas} vagas usadas">${Array.from({length:p.vagas},(_,i)=>`<i class="${i<n?"on":""}"></i>`).join("")}</div>
+      <div class="left">${left ? `${n} vendido${n===1?"":"s"} · restam <b style="color:var(--fg)">${left}</b> vagas` : `<span class="late">Vagas esgotadas: hora de reajustar o preço</span>`} · ${open} em negociação</div></div>`;
+  }).join("");
+  const contacted = leads.filter(l=>l.stage!=="novo").length;
+  $("#convTxt").textContent = (contacted ? Math.round(won.length/contacted*100) : 0) + "%";
+}
+
+/* ---------- Leads ---------- */
+let fStage = "";
+function renderLeads(){
+  $("#stageChips").innerHTML = [["","Todos"],...STAGES.map(s=>[s.k,s.t])].map(([k,t])=>`<button type="button" data-chip="${k}" aria-pressed="${fStage===k}">${t}</button>`).join("");
+  const q = $("#q").value.trim().toLowerCase();
+  const order = Object.fromEntries(STAGES.map((s,i)=>[s.k,i]));
+  const L = leads.filter(l=>(!fStage || l.stage===fStage) && (!q || [l.negocio,l.contato,l.seg,l.bairro].join(" ").toLowerCase().includes(q)))
+    .sort((a,b)=> (isDue(b)-isDue(a)) || (b.temp-a.temp) || order[a.stage]-order[b.stage]);
+  $("#ltable").innerHTML = `<div class="lrow lhead" aria-hidden="true"><span>Negócio</span><span class="c-seg">Segmento</span><span class="c-site">Site</span><span class="c-stage">Etapa</span><span>Temp.</span></div>` +
+    (L.length ? L.map(l=>{ const d=dueText(l); return `<button type="button" class="lrow" data-open="${l.id}">
+      <span><span class="nm" style="display:block">${esc(l.negocio)}</span><span class="sub ${active(l)?d.c:""}">${active(l)?d.t:ST[l.stage].t}</span></span>
+      <span class="sub c-seg">${esc(l.seg)} · ${esc(l.bairro)}</span>
+      <span class="c-site">${siteTag(l)}</span>
+      <span class="stage c-stage" style="--c:${ST[l.stage].c}">${ST[l.stage].t}</span>
+      <span class="temp"><i style="--c:${tempColor(l.temp)}"></i>${l.temp}</span>
+    </button>`;}).join("") : `<div class="empty" style="border:0">Nenhum lead com esse filtro.</div>`);
+}
+
+/* ---------- Ficha ---------- */
+function openLead(id, isNew){
+  const l = isNew ? {id:"n"+Date.now().toString(36),negocio:"",contato:"",seg:"",bairro:"",site:"nenhum",stage:"novo",aval:0,nota:0,prox:TODAY,pacote:"",valor:0,temp:50,demo:"",notas:"",hist:[],criado:TODAY} : byId(id);
+  if (!l) return;
+  const draw = () => {
+    $("#sheet").innerHTML = `<div class="overlay" id="ov"><div class="drawer" role="dialog" aria-modal="true" aria-labelledby="dT">
+      <header>
+        <div style="flex:1;min-width:0">
+          ${isNew?`<h2 id="dT">Novo lead</h2>`:`<div class="eyebrow">${esc(l.seg)} · ${esc(l.bairro)}</div><h2 id="dT" style="margin-top:4px">${esc(l.negocio)}</h2>`}
+        </div>
+        <button type="button" class="btn ghost" id="dX" aria-label="Fechar">✕</button>
+      </header>
+      ${isNew?`<div class="fgrid">
+          <label class="f">Negócio<input id="nNeg"></label>
+          <label class="f">Contato<input id="nCon"></label>
+          <label class="f">Segmento<input id="nSeg"></label>
+          <label class="f">Bairro<input id="nBai"></label>
+        </div>`:`<div class="row"><span class="tag demo">${pacLabel(l)}${l.valor?" · "+money(l.valor):""}</span><span class="tag">${SITE[l.site]}</span><span class="tag">${l.aval} avaliações · ${String(l.nota).replace(".",",")}★</span><span class="tag" style="color:${tempColor(l.temp)}">${tempWord(l.temp)} · ${l.temp}</span></div>`}
+      <div class="stack" style="gap:8px"><div class="eyebrow">Etapa</div>
+        <div class="seg">${STAGES.map(s=>`<button type="button" data-st="${s.k}" aria-pressed="${l.stage===s.k}">${s.t}</button>`).join("")}</div></div>
+      <div class="fgrid">
+        <label class="f">WhatsApp<input id="dTel" inputmode="tel" placeholder="(19) 99999-9999" value="${esc(l.tel)}"></label>
+        <label class="f">Site atual<select id="dSite">${Object.entries(SITE).map(([k,t])=>`<option value="${k}" ${l.site===k?"selected":""}>${t}</option>`).join("")}</select></label>
+        <label class="f">Próximo contato<input type="date" id="dProx" value="${l.prox||""}"></label>
+        <label class="f">Pacote<select id="dPac"><option value="">Escolher depois</option>${Object.entries(PAC).map(([k,p])=>`<option value="${k}" ${l.pacote===k?"selected":""}>${p.t}${p.preco!=null?" · "+money(p.preco):""}</option>`).join("")}</select></label>
+        <label class="f">Valor (R$)<input type="number" id="dVal" min="0" value="${l.valor||""}" placeholder="${l.pacote==="elaborado"?"a definir":""}"></label>
+      </div>
+      <div class="democard">
+        <div class="eyebrow">Site demo</div>
+        ${l.demo?`<div class="row"><a class="btn small" href="${esc(l.demo)}" target="_blank" rel="noopener">Abrir site demo</a><span class="sub">${l.demoTipo==="exemplo"?`Exemplo do segmento: ${esc(demoById(l.demoId)?.nome||"")}`:l.demoId?"Site feito para este lead":"Pronto para mandar"}</span></div>`:`<span class="sub">Nenhum site demo combina com este lead ainda. Escolha um ou cole um link.</span>`}
+        <select id="dDemoPick" aria-label="Escolher site demo"><option value="">Escolher um dos sites demo…</option>${DEMOS.map(d=>`<option value="${d.id}" ${l.demoId===d.id?"selected":""}>${esc(d.nome)} · ${esc(d.seg)}</option>`).join("")}</select>
+        <input id="dDemo" placeholder="Link do site demo" value="${esc(l.demo)}" aria-label="Link do site demo">
+      </div>
+      <label class="f">Anotações<textarea id="dNotas">${esc(l.notas)}</textarea></label>
+      ${isNew?`<button type="button" class="btn primary" id="dSave">Salvar lead</button>`:`<div class="row">
+        <button type="button" class="btn primary" data-msg="${l.id}">Mandar mensagem</button>
+        <button type="button" class="btn" id="dLog">Registrar contato</button></div>
+      <div><div class="eyebrow" style="margin-bottom:4px">Histórico</div>
+        <div class="hist">${l.hist.length?[...l.hist].reverse().map(h=>`<div><span>${fmt(h[0])}</span><span>${esc(h[1])}</span></div>`).join(""):`<div><span>—</span><span>Nenhum contato ainda</span></div>`}</div></div>`}
+    </div></div>`;
+    const close = () => { $("#sheet").innerHTML=""; render(); };
+    $("#dX").onclick = close;
+    $("#ov").onclick = e => { if (e.target.id==="ov") close(); };
+    $$("[data-st]").forEach(b=>b.onclick=()=>{ const prev=l.stage; l.stage=b.dataset.st; if(!isNew && prev!==l.stage) l.hist.push([TODAY,`Mudou para ${ST[l.stage].t}`]); if(l.stage==="fechado"){ l.temp=100; l.fechadoEm=TODAY; } draw(); if(!isNew) toast(`${l.negocio} → ${ST[l.stage].t}`); });
+    $("#dSite").onchange = e => l.site = e.target.value;
+    $("#dTel").onchange = e => l.tel = e.target.value.trim();
+    $("#dProx").onchange = e => l.prox = e.target.value;
+    $("#dVal").onchange = e => l.valor = +e.target.value||0;
+    $("#dPac").onchange = e => {
+      l.pacote = e.target.value; l.valor = priceFor(l.pacote);
+      const p = PAC[l.pacote];
+      if (p && p.vagas && sold(l.pacote) >= p.vagas) toast("As 10 vagas de lançamento deste pacote já foram usadas");
+      draw();
+    };
+    $("#dNotas").onchange = e => l.notas = e.target.value;
+    $("#dDemo").onchange = e => { l.demo = e.target.value.trim(); l.demoId = ""; l.demoTipo = ""; if(!isNew){ if(l.demo) l.hist.push([TODAY,"Link de site demo adicionado"]); draw(); } };
+    $("#dDemoPick").onchange = e => { const d = demoById(e.target.value); if(!d){ l.demo=""; l.demoId=""; l.demoTipo=""; } else { l.demo=d.url; l.demoId=d.id; l.demoTipo = nk(d.nome)===nk(l.negocio) ? "proprio" : "exemplo"; if(!isNew) l.hist.push([TODAY,"Ligado ao demo "+d.nome]); } draw(); };
+    if (isNew){
+      $("#dSave").onclick = () => {
+        l.negocio=$("#nNeg").value.trim(); if(!l.negocio){ toast("Coloque o nome do negócio"); return; }
+        l.contato=$("#nCon").value.trim(); l.seg=$("#nSeg").value.trim()||"—"; l.bairro=$("#nBai").value.trim()||"—";
+        l.notas=$("#dNotas").value; l.demo=$("#dDemo").value.trim(); leads.push(l); autoLink([l]); close(); toast(l.negocio+" entrou no funil");
+      };
+      setTimeout(()=>$("#nNeg").focus(),30);
+    } else {
+      $("#dLog").onclick = () => logContact(l, draw);
+    }
+  };
+  draw();
+}
+function logContact(l, after){
+  l.hist.push([TODAY, l.stage==="novo" ? "Primeiro contato" : "Retorno feito"]);
+  if (l.stage==="novo") l.stage="contatado";
+  l.prox = rel(2); l.temp = Math.min(99, l.temp+4);
+  toast(`Contato registrado. Próximo retorno em ${fmt(l.prox)}`);
+  after ? after() : render();
+}
+function weekStart(){ const d=new Date(); const k=(d.getDay()+6)%7; d.setDate(d.getDate()-k); return iso(d); }
+function updateGoal(){
+  const ws = weekStart();
+  const goal = leads.reduce((n,l)=>n+l.hist.filter(h=>h[0]>=ws && /^(Primeiro contato|Retorno feito)/.test(h[1])).length,0);
+  $("#goalTxt").innerHTML = `${goal} <span>/ ${goalWeek}</span>`; $("#goalBar").style.width = Math.min(100,goal/goalWeek*100)+"%";
+}
+
+/* ---------- Prospectar (busca automática, igual ao Radar; resultados simulados na demo) ---------- */
+const SEGS = ["clínica odontológica","advocacia","clínica de estética","restaurante","hamburgueria","pizzaria","academia","barbearia","salão de beleza","pet shop","oficina mecânica","imobiliária","padaria","cafeteria","contabilidade","hotel"];
+const P = {src: (()=>{ try { return localStorage.getItem(GKEY) ? "google" : "osm"; } catch { return "osm"; } })(), semSite:false, tel:true, novo:true, min:""};
+let results = [], picked = new Set(), searching = null;
+const splitList = s => String(s||"").split(",").map(x=>x.trim()).filter(Boolean);
+const normKey = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const isMobile = tel => { const d=waNum(tel); return d.startsWith("55") && d.length===13 && d[4]==="9"; };
+const GKEY = "radar-leads-v1-gkey";
+const gKey = () => { try { return localStorage.getItem(GKEY)||""; } catch { return ""; } };
+const OSM = [
+  [/barb/, ['["shop"="hairdresser"]["name"~"barb",i]','["shop"="barber"]']], [/salao|beleza/, ['["shop"="hairdresser"]','["shop"="beauty"]']],
+  [/hamburg|burger/, ['["cuisine"~"burger"]']], [/pizz/, ['["cuisine"~"pizza"]']], [/restaur/, ['["amenity"="restaurant"]']],
+  [/odonto|dent/, ['["amenity"="dentist"]','["healthcare"="dentist"]']], [/estet/, ['["shop"="beauty"]']], [/academ/, ['["leisure"="fitness_centre"]']],
+  [/pet/, ['["shop"="pet"]','["amenity"="veterinary"]']], [/oficina|mecan/, ['["shop"="car_repair"]']], [/imobil/, ['["office"="estate_agent"]']],
+  [/advog|advoc/, ['["office"="lawyer"]']], [/padar/, ['["shop"="bakery"]']], [/cafe/, ['["amenity"="cafe"]']], [/contab/, ['["office"="accountant"]']], [/hotel/, ['["tourism"="hotel"]']]
+];
+async function googlePage(q, token, signal, country){
+  const r = await fetch("https://places.googleapis.com/v1/places:searchText", {method:"POST", signal,
+    headers:{"Content-Type":"application/json","X-Goog-Api-Key":gKey(),"X-Goog-FieldMask":"places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.googleMapsUri,places.businessStatus,places.addressComponents,nextPageToken"},
+    body: JSON.stringify({textQuery:q, languageCode:"pt-BR", regionCode:country, pageSize:20, ...(token?{pageToken:token}:{})})});
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok){
+    const m = j.error?.message || "Google "+r.status;
+    throw Object.assign(new Error(/API key not valid/i.test(m) ? "Chave do Google inválida. Confira se copiou a chave inteira." : /referer|referrer/i.test(m) ? "A chave está bloqueada para este endereço. Adicione mende-debug.github.io/* em Restrições do aplicativo." : /not been used|disabled|SERVICE_DISABLED/i.test(m) ? "Ative a “Places API (New)” no seu projeto do Google Cloud." : /billing/i.test(m) ? "Ative o faturamento do projeto no Google Cloud (a cota gratuita continua valendo)." : m), {fatal:true});
+  }
+  return j;
+}
+async function runGoogle(seg, city, country, signal, onPage){
+  let token = null, page = 0;
+  do {
+    const j = await googlePage(`${seg} em ${city}`, token, signal, country); page++;
+    onPage((j.places||[]).filter(p=>p.businessStatus!=="CLOSED_PERMANENTLY").map(p=>{
+      const hood = (p.addressComponents||[]).find(c=>(c.types||[]).includes("sublocality") || (c.types||[]).includes("sublocality_level_1"))?.longText || city;
+      return {placeId:p.id, nome:p.displayName?.text||"", endereco:p.formattedAddress||"", telefone:p.nationalPhoneNumber||p.internationalPhoneNumber||"",
+        site:p.websiteUri||"", nota:p.rating??null, avaliacoes:p.userRatingCount??0, mapsUrl:p.googleMapsUri||"", segmento:seg, cidade:city, bairro:hood, fonte:"Google Maps"};
+    }));
+    token = j.nextPageToken;
+    if (token) await wait(1200, signal);
+  } while (token && page < 3 && !signal.aborted);
+}
+async function runOsm(seg, city, country, signal, onPage){
+  const g = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=${country.toLowerCase()}&q=${encodeURIComponent(city)}`, {signal})).json();
+  if (!g.length) throw new Error(`Não achei “${city}” no mapa.`);
+  const [so,no,we,ea] = g[0].boundingbox.map(Number), bbox = `(${so},${we},${no},${ea})`;
+  const hit = OSM.find(([re])=>re.test(normKey(seg)));
+  const sels = hit ? hit[1] : [`["name"~"${seg.replace(/["\\]/g,"")}",i]`];
+  const q = `[out:json][timeout:25];(${sels.map(x=>`nwr${x}${bbox};`).join("")});out center tags 300;`;
+  const r = await fetch("https://overpass-api.de/api/interpreter", {method:"POST", signal, body:"data="+encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+  if (!r.ok) throw new Error("O OpenStreetMap está ocupado agora. Tente de novo em 1 minuto.");
+  const j = await r.json();
+  onPage((j.elements||[]).filter(x=>x.tags?.name).map(x=>{ const tg=x.tags, lat=x.lat??x.center?.lat, lon=x.lon??x.center?.lon;
+    return {placeId:"osm:"+x.type+"/"+x.id, nome:tg.name, endereco:[tg["addr:street"],tg["addr:housenumber"],tg["addr:suburb"]].filter(Boolean).join(", ")||city,
+      telefone:tg.phone||tg["contact:phone"]||tg["contact:whatsapp"]||tg.mobile||"", site:tg.website||tg["contact:website"]||"",
+      nota:null, avaliacoes:null, mapsUrl: lat ? `https://www.google.com/maps/search/${encodeURIComponent(tg.name)}/@${lat},${lon},18z` : "https://www.google.com/maps/search/"+encodeURIComponent(tg.name+" "+city),
+      segmento:seg, cidade:city, bairro:tg["addr:suburb"]||city, fonte:"OpenStreetMap"}; }));
+}
+function inFunnel(r){
+  const tel = waNum(r.telefone).slice(-8), nm = normKey(r.nome);
+  return leads.some(l => l.placeId===r.placeId || (tel.length===8 && waNum(l.tel).slice(-8)===tel) || (nm && normKey(l.negocio)===nm));
+}
+function rank(r){ let s=0; if(!r.site) s+=3; if(r.avaliacoes!=null) s+=Math.min(r.avaliacoes,200)/100; if(r.telefone && isMobile(r.telefone)) s+=1; if(r.telefone) s+=.5; return s; }
+function leadTemp(r){ return Math.min(95, 20 + (r.site?10:35) + (r.avaliacoes==null?5: r.avaliacoes>=20?15:5) + (r.nota!=null && r.nota>=4.5?5:0) + (isMobile(r.telefone)?10:0)); }
+function visible(){
+  return results.map(r=>({...r, dup:inFunnel(r)}))
+    .filter(r=>(!P.semSite || !r.site) && (!P.tel || r.telefone) && (!P.novo || !r.dup) && (P.min==="" || r.avaliacoes==null || r.avaliacoes >= +P.min))
+    .sort((a,b)=>rank(b)-rank(a));
+}
+const wait = (ms, signal) => new Promise((res,rej)=>{ const t=setTimeout(res,ms); signal.addEventListener("abort",()=>{ clearTimeout(t); rej(Object.assign(new Error("abort"),{name:"AbortError"})); },{once:true}); });
+async function psSearch(){
+  const segs = splitList($("#psSeg").value), cities = splitList($("#psCity").value);
+  if (!segs.length || !cities.length){ toast("Preencha o segmento e a cidade"); return; }
+  if (P.src==="google" && !gKey()){ $("#psKey").open = true; $("#psGkey").focus(); toast("Configure a chave do Google ou use o OpenStreetMap"); return; }
+  const combos = segs.flatMap(s=>cities.map(c=>[s,c])).slice(0,30);
+  results=[]; picked.clear(); $("#psRes").hidden=false;
+  const ctl = new AbortController(); searching = ctl;
+  $("#psGo").disabled=true; $("#psStop").hidden=false;
+  const seen = new Set(), prog=$("#psProg"), errs=[], country=$("#psCountry").value;
+  prog.style.color = "";
+  psRefresh();
+  for (const [i,[seg,city]] of combos.entries()){
+    if (ctl.signal.aborted) break;
+    prog.textContent = `Buscando ${seg} em ${city}…` + (combos.length>1?` (${i+1}/${combos.length})`:"");
+    try {
+      await (P.src==="google" ? runGoogle : runOsm)(seg, city, country, ctl.signal, items => {
+        for (const it of items){ const k = it.placeId || normKey(it.nome)+waNum(it.telefone); if (seen.has(k)) continue; seen.add(k); results.push(it); }
+        psRefresh();
+      });
+    } catch(e){ if (e.name==="AbortError") break; errs.push(e.message); if (e.fatal) break; }
+  }
+  prog.textContent = errs.length ? errs[0] : ctl.signal.aborted ? "Busca interrompida." : `Pronto: ${results.length} empresas encontradas.`;
+  if (errs.length) prog.style.color = "var(--late)";
+  searching=null; $("#psGo").disabled=false; $("#psStop").hidden=true; psRefresh();
+}
+function psAdd(){
+  const V = visible().filter(r=>picked.has(r.placeId) && !r.dup);
+  if (!V.length) return;
+  for (const r of V){
+    leads.push({id:"p"+Math.random().toString(36).slice(2,9), placeId:r.placeId, negocio:r.nome, contato:"", tel:r.telefone, seg:r.segmento, bairro:r.bairro,
+      site: r.site ? "ruim" : "nenhum", siteUrl:r.site, stage:"novo", aval:r.avaliacoes??0, nota:r.nota??0, prox:TODAY, pacote:"", valor:0, temp:leadTemp(r), demo:"",
+      notas:[r.endereco, r.site?"Site atual: "+r.site:"", "Fonte: "+r.fonte].filter(Boolean).join(" · "), hist:[[TODAY,"Encontrado na prospecção ("+r.fonte+")"]], criado:TODAY});
+  }
+  const linked = autoLink(leads.slice(-V.length));
+  picked.clear(); render();
+  if (linked) setTimeout(()=>toast(`${linked} recebe${linked>1?"ram":"u"} um site demo automaticamente`), 2400);
+  toast(`${V.length} lead${V.length>1?"s":""} adicionado${V.length>1?"s":""} ao funil`);
+}
+function psRefresh(){
+  const V = visible(), keys = new Set(V.map(r=>r.placeId));
+  for (const k of [...picked]) if (!keys.has(k)) picked.delete(k);
+  $("#psTitle").textContent = `${V.length} leads encontrados`;
+  $("#psSub").textContent = results.length > V.length ? `${results.length-V.length} escondidos pelos filtros` : "Os melhores aparecem primeiro: sem site, com movimento e com celular.";
+  const add=$("#psAdd"); add.disabled=!picked.size; add.textContent = picked.size ? `Adicionar ${picked.size} ao funil` : "Adicionar ao funil";
+  const free = V.filter(r=>!r.dup);
+  $("#psAll").textContent = free.length && free.every(r=>picked.has(r.placeId)) ? "Limpar seleção" : "Selecionar todos";
+  $("#psList").innerHTML = V.map(r=>`<li class="res ${r.dup?"dup":""}"><label class="res-l">
+      <input type="checkbox" data-k="${esc(r.placeId)}" ${picked.has(r.placeId)?"checked":""} ${r.dup?"disabled":""} aria-label="${esc(r.nome)}">
+      <span class="res-b"><b>${esc(r.nome)}</b>
+        <span class="res-m">${r.nota!=null?`<span class="stars">★ ${String(r.nota).replace(".",",")}</span>`:""}
+          ${r.avaliacoes!=null?`<span><b class="num">${r.avaliacoes}</b> avaliações</span>`:""}
+          ${r.telefone?`<span class="num">${esc(r.telefone)}</span>${isMobile(r.telefone)?`<span class="tag ok">WhatsApp</span>`:""}`:`<span class="sub">sem telefone</span>`}
+          ${r.site?`<a href="${esc(r.site)}" target="_blank" rel="noopener">tem site</a>`:`<span class="tag warn">sem site</span>`}
+          ${r.dup?`<span class="tag">já no funil</span>`:r.site?`<span class="tag">reformular?</span>`:`<span class="tag demo">site novo</span>`}</span>
+        <span class="sub">${esc(r.endereco)}</span></span></label>
+      <a class="btn small ghost" href="${esc(r.mapsUrl)}" target="_blank" rel="noopener">Maps</a></li>`).join("")
+    || `<li class="empty">${searching?"Procurando empresas…":results.length?"Nenhuma empresa passa nos filtros. Afrouxe os filtros acima.":"Nenhuma empresa encontrada. Tente outro segmento ou cidade."}</li>`;
+}
+function markIdeas(){ const cur=splitList($("#psSeg").value).map(x=>x.toLowerCase()); $$("#psIdeas button").forEach(b=>b.setAttribute("aria-pressed", cur.includes(b.textContent.toLowerCase()))); }
+
+/* ---------- Mensagens (modelos editáveis, como no Radar CRM) ---------- */
+const MOMENTOS = {primeiro:"Primeiro contato", demo:"Envio do site demo", exemplo:"Envio de exemplo", retorno:"Retorno", proposta:"Proposta", fechamento:"Fechamento", outro:"Outro"};
+const VARS = ["contato","empresa","bairro","segmento","avaliacoes","situacao_site","site_demo","exemplo_de","pacote","pacote_desc","valor","lancamento","meu_nome"];
+const TPL_DEFAULT = [
+  {id:"tp1",nome:"Primeiro contato",pacote:"",momento:"primeiro",texto:"Oi {contato}, tudo bem? Procurei a {empresa} no Google e {situacao_site}. Hoje muita gente pesquisa antes de escolher e acaba indo para quem aparece melhor.\n\nEu crio sites rápidos, pensados para o celular e com botão direto para o WhatsApp. Posso te mostrar uma ideia para vocês?"},
+  {id:"tp2",nome:"Enviar site demo",pacote:"",momento:"demo",texto:"Oi {contato}! Montei uma prévia de como ficaria o site da {empresa}. Dá uma olhada:\n\n{site_demo}\n\nAbre pelo celular, que é como os clientes vão ver. Me diz o que achou?"},
+  {id:"tp7",nome:"Enviar exemplo do segmento",pacote:"",momento:"exemplo",texto:"Oi {contato}! Para você ter uma ideia, esse é um site que fiz para {exemplo_de}:\n\n{site_demo}\n\nDá para fazer um no mesmo estilo para a {empresa}, com as fotos, cores e serviços de vocês. Quer que eu monte uma prévia?"},
+  {id:"tp3",nome:"Retorno sem resposta",pacote:"",momento:"retorno",texto:"Oi {contato}! Voltando aqui sobre o site da {empresa}. Conseguiu dar uma olhada? Se quiser, ajusto cores, fotos e textos do jeito de vocês."},
+  {id:"tp4",nome:"Proposta",pacote:"",momento:"proposta",texto:"Oi {contato}, segue a proposta para a {empresa}:\n\nPacote: {pacote}\n• {pacote_desc}\n• Pensado para o celular, rápido de abrir\n• Botão de WhatsApp, mapa e Instagram\n• Aparece no Google com o nome e o bairro de vocês\n\nValor: {valor}{lancamento}\nPrazo: [prazo] dias\n\nQualquer dúvida me chama."},
+  {id:"tp5",nome:"Proposta landing page",pacote:"landing",momento:"proposta",texto:"Oi {contato}! Para a {empresa}, a landing page resolve bem: uma página só, direta, que leva o cliente para o seu WhatsApp.\n\nValor: {valor}{lancamento}\nPrazo: [prazo] dias\n\nFecho com você essa semana?"},
+  {id:"tp6",nome:"Fechamento",pacote:"",momento:"fechamento",texto:"Show {contato}, vamos colocar o site da {empresa} no ar! Me manda:\n1. Logo e cores da marca\n2. Fotos do espaço e dos serviços\n3. Lista de serviços e horários\n\nCom isso te mando a primeira versão em [prazo] dias."}
+];
+const TKEY = "radar-demo-modelos-v1";
+let templates = (()=>{ try { const v=JSON.parse(localStorage.getItem(TKEY)||"null"); return Array.isArray(v)&&v.length ? v : TPL_DEFAULT.map(x=>({...x})); } catch { return TPL_DEFAULT.map(x=>({...x})); } })();
+let deletedTpl = (()=>{ try { return JSON.parse(localStorage.getItem(TKEY+"-del")||"[]"); } catch { return []; } })();
+TPL_DEFAULT.forEach(d=>{ if (!templates.some(x=>x.id===d.id) && !deletedTpl.includes(d.id)) templates.push({...d}); });
+const saveTemplates = () => { try { localStorage.setItem(TKEY, JSON.stringify(templates)); localStorage.setItem(TKEY+"-del", JSON.stringify(deletedTpl)); } catch {} };
+let tplId = "";
+
+function fill(text, l){
+  l = l || {};
+  const first = (l.contato||"").replace(/^(Dr\.|Dra\.)\s*/,"").split(" ")[0];
+  const p = l.pacote ? PAC[l.pacote] : null;
+  const map = {
+    contato:first, empresa:l.negocio||"sua empresa", bairro:l.bairro||"", segmento:(l.seg||"").toLowerCase(), avaliacoes:l.aval??"",
+    situacao_site: l.site==="ruim" ? "vi que o site de vocês não abre muito bem no celular" : "não encontrei um site de vocês",
+    site_demo: l.demo || "[link do site demo]",
+    exemplo_de: (()=>{ const d=demoById(l.demoId); return d ? (d.modelo ? "uma "+d.seg.toLowerCase() : "a "+d.nome) : "outro cliente"; })(),
+    pacote: p ? p.t : "[landing page ou site]", pacote_desc: p ? p.d : "[o que está incluso]",
+    valor: l.valor ? money(l.valor) : l.pacote==="elaborado" ? "[a definir]" : "[valor]",
+    lancamento: p && p.vagas && sold(l.pacote) < p.vagas ? " (preço de lançamento, só para os 10 primeiros clientes)" : "",
+    meu_nome:"Isaac"
+  };
+  if (!first) text = text.replace(/,? ?\{contato\}/g, "");
+  return text.replace(/\{(\w+)\}/g, (m,k)=> k in map ? map[k] : m).replace(/[ \t]{2,}/g," ");
+}
+const demoMoment = l => l.demoTipo==="exemplo" ? "exemplo" : "demo";
+const sentDemo = l => l.hist.some(h=>/enviou o (site demo|exemplo)/i.test(h[1]));
+const momentFor = l => !l ? "primeiro" : l.stage==="novo" ? (l.demo?demoMoment(l):"primeiro") : l.stage==="contatado" ? (l.demo && !sentDemo(l) ? demoMoment(l) : "retorno") : l.stage==="interessado" ? "proposta" : l.stage==="proposta" ? "retorno" : "fechamento";
+function suggested(l){
+  const m = momentFor(l);
+  return templates.find(x=>x.momento===m && l && x.pacote && x.pacote===l.pacote) || templates.find(x=>x.momento===m && !x.pacote) || templates.find(x=>x.momento===m) || templates[0];
+}
+const curLead = () => byId($("#mLead").value);
+function fillLeads(){
+  const cur=$("#mLead").value;
+  $("#mLead").innerHTML = `<option value="">Sem lead (texto genérico)</option>` + leads.filter(active).sort((a,b)=>a.negocio.localeCompare(b.negocio)).map(l=>`<option value="${l.id}">${esc(l.negocio)} · ${ST[l.stage].t}</option>`).join("");
+  if (byId(cur) && active(byId(cur))) $("#mLead").value = cur;
+}
+function renderTpls(){
+  if (!templates.some(x=>x.id===tplId)) tplId = suggested(curLead())?.id || "";
+  const groups = [["", "Geral"], ...Object.entries(PAC).map(([k,p])=>[k,p.t])].map(([k,t])=>[t, templates.filter(x=>(x.pacote||"")===k)]).filter(g=>g[1].length);
+  $("#mTpls").innerHTML = groups.map(([t,tps])=>`<div class="tpl-g"><span class="tpl-gh">${esc(t)}</span>
+    ${tps.map(x=>`<div class="tpl ${x.id===tplId?"on":""}" data-tpl="${esc(x.id)}" role="option" aria-selected="${x.id===tplId}" tabindex="0"><span><b>${esc(x.nome)}</b><small>${MOMENTOS[x.momento]||""}</small></span>
+      <button type="button" class="icon-btn" data-edittpl="${esc(x.id)}" aria-label="Editar modelo ${esc(x.nome)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></button></div>`).join("")}</div>`).join("")
+    || `<p class="empty">Nenhum modelo. Crie o primeiro.</p>`;
+}
+function buildMsg(){
+  renderTpls();
+  const tp = templates.find(x=>x.id===tplId);
+  $("#mText").value = tp ? fill(tp.texto, curLead()) : "";
+  updWa();
+}
+const waNum = s => { let d=String(s||"").replace(/\D/g,""); if(!d) return ""; if(d.length<=11) d="55"+d; return d; };
+function updWa(){
+  const l = curLead(), n = waNum(l?.tel);
+  $("#mWa").href = "https://wa.me/"+n+"?text="+encodeURIComponent($("#mText").value);
+  $("#mTo").textContent = l ? (l.tel ? "para "+l.tel : "lead sem telefone") : "";
+}
+function goMsg(id){
+  $("#sheet").innerHTML = "";
+  fillLeads(); const l = byId(id);
+  if (l && active(l)) $("#mLead").value=id;
+  tplId = suggested(curLead())?.id || "";
+  buildMsg(); show("mensagens");
+}
+function editTpl(id, fromText){
+  const tp = id ? templates.find(x=>x.id===id) : {id:"tp"+Date.now().toString(36), nome:"", pacote:"", momento:"outro", texto: fromText || ""};
+  $("#sheet").innerHTML = `<div class="overlay center" id="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="tT">
+    <header class="row" style="justify-content:space-between"><h2 id="tT">${id?"Editar modelo":"Novo modelo"}</h2><button type="button" class="btn ghost" id="tX" aria-label="Fechar">✕</button></header>
+    <div class="fgrid">
+      <label class="f" style="grid-column:1/-1">Nome do modelo<input id="tN" value="${esc(tp.nome)}"></label>
+      <label class="f">Pacote<select id="tP"><option value="">Geral</option>${Object.entries(PAC).map(([k,p])=>`<option value="${k}" ${tp.pacote===k?"selected":""}>${p.t}</option>`).join("")}</select></label>
+      <label class="f">Momento<select id="tM">${Object.entries(MOMENTOS).map(([k,t])=>`<option value="${k}" ${tp.momento===k?"selected":""}>${t}</option>`).join("")}</select></label>
+    </div>
+    <label class="f">Texto<textarea id="tT2" rows="10">${esc(tp.texto)}</textarea></label>
+    <div class="vars"><span class="sub">Inserir campo:</span>${VARS.map(v=>`<button type="button" data-var="${v}">{${v}}</button>`).join("")}</div>
+    <div class="row" id="tDelConfirm" hidden style="color:var(--late);font-weight:600">Excluir este modelo de vez? <button type="button" class="btn small" id="tDelYes">Sim, excluir</button><button type="button" class="btn small ghost" id="tDelNo">Cancelar</button></div>
+    <footer class="row">${id?`<button type="button" class="btn ghost" id="tDel" style="color:var(--late)">Excluir</button>`:""}<span style="flex:1"></span><button type="button" class="btn" id="tCancel">Cancelar</button><button type="button" class="btn primary" id="tSave">Salvar</button></footer>
+  </div></div>`;
+  const close = () => { $("#sheet").innerHTML=""; };
+  $("#tX").onclick = $("#tCancel").onclick = close;
+  $("#ov").onclick = e => { if (e.target.id==="ov") close(); };
+  document.querySelector(".vars").onclick = e => { const b=e.target.closest("[data-var]"); if(!b) return; const ta=$("#tT2"), s=ta.selectionStart; ta.setRangeText("{"+b.dataset.var+"}", s, ta.selectionEnd, "end"); ta.focus(); };
+  $("#tSave").onclick = () => {
+    const n = {...tp, nome:$("#tN").value.trim(), pacote:$("#tP").value, momento:$("#tM").value, texto:$("#tT2").value};
+    if (!n.nome || !n.texto.trim()){ toast("Dê um nome e escreva o texto"); return; }
+    templates = id ? templates.map(x=>x.id===id?n:x) : [...templates, n];
+    saveTemplates(); tplId = n.id; close(); toast("Modelo salvo"); buildMsg();
+  };
+  if (id){
+    $("#tDel").onclick = () => $("#tDelConfirm").hidden = false;
+    $("#tDelNo").onclick = () => $("#tDelConfirm").hidden = true;
+    $("#tDelYes").onclick = () => { templates = templates.filter(x=>x.id!==id); deletedTpl.push(id); saveTemplates(); tplId=""; close(); toast("Modelo excluído"); buildMsg(); };
+  }
+  setTimeout(()=>$("#tN").focus(),30);
+}
+
+/* ---------- Sites demo ---------- */
+let dSeg = "";
+function renderDemos(){
+  const segs = [...new Set(DEMOS.map(d=>d.seg))];
+  const withDemo = leads.filter(l=>active(l) && l.demo).length;
+  const waiting = leads.filter(l=>active(l) && l.demo && !sentDemo(l)).length;
+  const without = leads.filter(l=>active(l) && !l.demo).length;
+  $("#dStats").innerHTML = [[DEMOS.length,"sites demo prontos"],[withDemo,"leads com demo ligado"],[waiting,"demos ainda não enviados","var(--accent-hi)"]]
+    .map(([v,t,c])=>`<div class="kpi"><span>${t}</span><b ${c?`style="color:${c}"`:""}>${v}</b></div>`).join("");
+  $("#dChips").innerHTML = [["","Todos"],...segs.map(s=>[s,s])].map(([k,t])=>`<button type="button" data-dseg="${esc(k)}" aria-pressed="${dSeg===k}">${esc(t)}</button>`).join("")
+    + (without ? `<span class="sub" style="align-self:center;margin-left:6px">${without} lead${without>1?"s":""} sem demo que combine</span>` : "");
+  $("#dGrid").innerHTML = DEMOS.filter(d=>!dSeg || d.seg===dSeg).map(d=>{
+    const L = leads.filter(l=>l.demoId===d.id && l.stage!=="perdido");
+    const host = "claude.ai/artifact/"+d.url.split("/").pop();
+    const initials = d.nome.replace(/^(Dr\.|Dra\.)\s*/,"").split(/\s+/).filter(w=>w.length>2||/&/.test(w)).slice(0,2).map(w=>w[0]).join("").toUpperCase();
+    return `<article class="dcard">
+      <a class="dshot" href="${esc(d.url)}" target="_blank" rel="noopener" style="--c:${d.cor};text-decoration:none" aria-label="Abrir ${esc(d.nome)}">
+        <div class="chrome"><i></i><i></i><i></i><span>${esc(host)}</span></div>
+        <span class="mono" aria-hidden="true">${esc(initials)}</span>
+        <span class="pill">${d.modelo?"Modelo do segmento":esc(d.seg)}</span>
+        <div class="hero"><b>${esc(d.nome)}</b><small>${esc(d.sub)}</small></div>
+      </a>
+      <div class="dbody">
+        <div class="eyebrow">${L.length ? `Ligado a ${L.length} lead${L.length>1?"s":""}` : "Nenhum lead ligado"}</div>
+        <div class="dlinks">${L.length ? L.map(l=>`<button type="button" class="dlead" data-msg="${l.id}"><span>${esc(l.negocio)}</span><small>${l.demoTipo==="exemplo"?"exemplo":"próprio"} · ${sentDemo(l)?"enviado":ST[l.stage].t}</small></button>`).join("") : `<span class="sub">Vai para o próximo lead de ${esc(d.seg.toLowerCase())} que você prospectar.</span>`}</div>
+        <div class="dacts">
+          <a class="btn small" href="${esc(d.url)}" target="_blank" rel="noopener">Abrir site</a>
+          <button type="button" class="btn small" data-copy="${esc(d.url)}">Copiar link</button>
+        </div>
+      </div>
+    </article>`;}).join("");
+}
+
+/* ---------- Navegação ---------- */
+const TABS = ["hoje","leads","prospectar","demos","mensagens"];
+function show(t){
+  if (!TABS.includes(t)) t="hoje";
+  TABS.forEach(x=>$("#v-"+x).hidden = x!==t);
+  $$(".nav button").forEach(b=>b.setAttribute("aria-current", b.dataset.tab===t));
+  if (location.hash.slice(1)!==t) history.replaceState(null,"","#"+t);
+  if (t==="mensagens" && !$("#mText").value){ fillLeads(); buildMsg(); }
+  render(); window.scrollTo(0,0);
+}
+function render(){ save(); updateGoal(); renderDemos(); renderHoje(); renderLeads(); fillLeads(); if (results.length) psRefresh(); }
+
+/* ---------- Eventos ---------- */
+$("#dChips").onclick = e => { const b=e.target.closest("[data-dseg]"); if(!b) return; dSeg=b.dataset.dseg; renderDemos(); };
+$("#dGrid").addEventListener("click", async e => { const b=e.target.closest("[data-copy]"); if(!b) return; try { await navigator.clipboard.writeText(b.dataset.copy); toast("Link copiado"); } catch { toast(b.dataset.copy); } });
+$("#mLead").onchange = () => { tplId = suggested(curLead())?.id || ""; buildMsg(); };
+$("#mTpls").onclick = e => {
+  const ed = e.target.closest("[data-edittpl]"); if (ed){ e.stopPropagation(); editTpl(ed.dataset.edittpl); return; }
+  const b = e.target.closest("[data-tpl]"); if (b){ tplId = b.dataset.tpl; buildMsg(); }
+};
+$("#mTpls").onkeydown = e => { if ((e.key==="Enter"||e.key===" ") && e.target.matches(".tpl")){ e.preventDefault(); tplId=e.target.dataset.tpl; buildMsg(); } };
+$("#mNew").onclick = () => editTpl(null);
+$("#mSaveTpl").onclick = () => {
+  const l = curLead(); let txt = $("#mText").value;
+  if (l){ const first=(l.contato||"").replace(/^(Dr\.|Dra\.)\s*/,"").split(" ")[0]; if (l.negocio) txt = txt.split(l.negocio).join("{empresa}"); if (first) txt = txt.replace(new RegExp("\\b"+first+"\\b","g"),"{contato}"); if (l.valor) txt = txt.split(money(l.valor)).join("{valor}"); }
+  editTpl(null, txt);
+};
+$("#mText").addEventListener("input", updWa);
+$("#mCopy").onclick = async () => { const ta=$("#mText"); try { await navigator.clipboard.writeText(ta.value); toast("Mensagem copiada"); } catch { ta.select(); toast("Texto selecionado. Copie pelo menu"); } };
+$("#mMark").onclick = () => { const l=curLead(); if(!l){ toast("Escolha um lead para registrar"); return; } const tp=templates.find(x=>x.id===tplId); if (tp?.momento==="demo") l.hist.push([TODAY,"Enviou o site demo"]); if (tp?.momento==="exemplo") l.hist.push([TODAY,"Enviou o exemplo do segmento"]); logContact(l); fillLeads(); $("#mLead").value=l.id; tplId=suggested(l)?.id||""; renderTpls(); };
+$("#psIdeas").innerHTML = SEGS.map(s=>`<button type="button">${s}</button>`).join("");
+$("#psIdeas").onclick = e => { const b=e.target.closest("button"); if(!b) return; const cur=splitList($("#psSeg").value), i=cur.map(x=>x.toLowerCase()).indexOf(b.textContent.toLowerCase()); i>=0?cur.splice(i,1):cur.push(b.textContent); $("#psSeg").value=cur.join(", "); markIdeas(); };
+$("#psSeg").addEventListener("input", markIdeas);
+[["#psSemSite","semSite"],["#psTel","tel"],["#psNovo","novo"]].forEach(([id,k])=>$(id).addEventListener("input",e=>{ P[k]=e.target.checked; psRefresh(); }));
+$("#psMin").addEventListener("input", e=>{ P.min=e.target.value; psRefresh(); });
+$("#psSrc").onclick = e => { const b=e.target.closest("button"); if(!b) return; P.src=b.dataset.s; $$("#psSrc button").forEach(x=>x.setAttribute("aria-pressed", x===b)); keyState(); };
+$$("#psSrc button").forEach(x=>x.setAttribute("aria-pressed", x.dataset.s===P.src));
+function keyState(){ const ok=!!gKey(); $("#psKeyB").textContent = ok?"configurada":"não configurada"; $("#psKeyB").className = "tag "+(ok?"ok":"warn"); $("#psGdel").hidden=!ok; if(!ok && P.src==="google") $("#psKey").open=true; }
+$("#psGsave").onclick = () => { const k=$("#psGkey").value.trim(); if(!k) return; try { localStorage.setItem(GKEY,k); } catch {} $("#psGkey").value=""; keyState(); toast("Chave salva neste aparelho"); };
+$("#psGdel").onclick = () => { try { localStorage.removeItem(GKEY); } catch {} keyState(); };
+$("#psGo").onclick = psSearch;
+$("#psStop").onclick = () => searching?.abort();
+$("#psList").addEventListener("change", e => { const k=e.target.dataset?.k; if(!k) return; e.target.checked?picked.add(k):picked.delete(k); psRefresh(); });
+$("#psAll").onclick = () => { const V=visible().filter(r=>!r.dup); V.length && V.every(r=>picked.has(r.placeId)) ? picked.clear() : V.forEach(r=>picked.add(r.placeId)); psRefresh(); };
+$("#psAdd").onclick = psAdd;
+$("#q").addEventListener("input",renderLeads);
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-tab],[data-go],[data-new],[data-open],[data-msg],[data-chip],[data-stagefilter]");
+  if (!t) return;
+  if (t.dataset.msg){ e.stopPropagation(); goMsg(t.dataset.msg); return; }
+  if (t.dataset.tab) show(t.dataset.tab);
+  else if (t.dataset.go) show(t.dataset.go);
+  else if (t.hasAttribute("data-new")) openLead(null,true);
+  else if (t.dataset.open) openLead(t.dataset.open);
+  else if (t.dataset.chip!==undefined){ fStage=t.dataset.chip; renderLeads(); }
+  else if (t.dataset.stagefilter){ fStage=t.dataset.stagefilter; show("leads"); }
+});
+document.addEventListener("keydown", e => {
+  if (e.key==="Escape" && $("#sheet").innerHTML){ $("#sheet").innerHTML=""; render(); return; }
+  if ((e.key==="Enter"||e.key===" ") && e.target.matches?.(".rrow")){ e.preventDefault(); e.target.click(); }
+});
+window.addEventListener("hashchange", ()=>show(location.hash.slice(1)));
+
+$("#bkExport").onclick = () => {
+  const blob = new Blob([JSON.stringify({v:1, app:"radar-novo", leads, goalWeek, modelos:templates, exportadoEm:new Date().toISOString()}, null, 2)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `radar-backup-${TODAY}.json`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast("Backup exportado");
+};
+$("#bkFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (!Array.isArray(j.leads)) throw 0;
+    const ids = new Set(leads.map(l=>l.id)); let n = 0;
+    for (const l of j.leads){ if (ids.has(l.id)) { const i = leads.findIndex(x=>x.id===l.id); leads[i] = l; } else { leads.push(l); } n++; }
+    if (Array.isArray(j.modelos) && j.modelos.length){ templates = j.modelos; saveTemplates(); }
+    if (j.goalWeek) goalWeek = j.goalWeek;
+    render(); toast(`${n} leads importados do backup`);
+  } catch { toast("Esse arquivo não é um backup do Radar"); }
+};
+autoLink(leads);
+keyState();
+show(location.hash.slice(1));
+if (importedCount) setTimeout(()=>toast(`${importedCount} leads trazidos do Radar antigo`), 400);
+})();
+</script>
+</body>
+</html>
